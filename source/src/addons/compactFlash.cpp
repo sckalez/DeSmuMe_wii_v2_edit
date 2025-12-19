@@ -511,10 +511,19 @@ static BOOL cflash_init()
 		sFlashPath = path.pathToRoms;
 		INFO("Using CFlash directory of rom: %s\n", sFlashPath.c_str());
 	}
+	// Fallback: if CFlash_Path is empty we force file mode to avoid using an empty directory. This prevents invalid path usage that previously caused crashes.
 	else if(CFlash_Mode == ADDON_CFLASH_MODE_Path)
 	{
 		sFlashPath = CFlash_Path;
-		INFO("Using CFlash directory: %s\n", sFlashPath.c_str());
+		if (sFlashPath.empty())
+		{
+			INFO("CFlash_Path is empty; falling back to disk image mode\n");
+			CFlash_Mode = ADDON_CFLASH_MODE_File; /* fall back to file mode */
+		}
+		else
+		{
+			INFO("Using CFlash directory: %s\n", sFlashPath.c_str());
+		}
 	}
 
 	if(CFlash_IsUsingPath())
