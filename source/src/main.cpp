@@ -21,9 +21,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <stdio.h>
-#include <string.h> //new
 #include <unistd.h>
-#include <fcntl.h>    // for fileno()
 #include <fat.h>
 #include <ogcsys.h>
 #include <sdcard/wiisd_io.h>
@@ -178,51 +176,8 @@ static bool FindIOS(u32 ios)
 extern "C"
 #endif
 
-// Returns true on success
-bool write_readme_to_sd()
-{
-    // Initialize FAT subsystem if needed. Some libfat variants return 0 on success;
-    // if your build uses a variant that returns 0, invert the check below.
-    fatInitDefault();
-
-    const char* path = "sd:/readme.txt";
-    FILE* f = fopen(path, "w");
-    if (!f) return false;
-
-    const char* text = "Hello World\n";
-    size_t len = strlen(text);
-    size_t wrote = fwrite(text, 1, len, f);
-
-    // Flush libc buffers
-    fflush(f);
-
-    // Force the underlying file descriptor to sync to the emulated block device
-    int fd = fileno(f);
-    if (fd >= 0) {
-        fsync(fd);   // ensure data is written to the device
-    }
-
-    // Close file (also flushes)
-    fclose(f);
-
-    // NOTE: some toolchains do not provide a global sync() symbol.
-    // fsync() on the file descriptor + fclose() is usually sufficient
-    // for the emulated environment (Dolphin) to persist the data into the SD image.
-    // If you later need an explicit filesystem-level flush and your libfat exposes it,
-    // call that libfat API here (e.g., fatFlush or fatUnmount) instead.
-
-    return (wrote == len);
-}
-
 int main(int argc, char **argv)
 {
-	// Attempt to write the readme; ignore failure in release builds
-    if (write_readme_to_sd()) {
-        // Optional: you can log success to console or in-game UI
-    } else {
-        // Optional: handle failure (e.g., no SD present)
-    }
-	
 	IO::SD OurSD;
 	OurSD.Mount();
 	IO::USB OurUSB;
