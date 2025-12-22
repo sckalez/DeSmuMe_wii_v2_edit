@@ -385,6 +385,67 @@ void init(){
 
 #define RGB15_REVERSE(col) ( 0x8000 | (((col) & 0x001F) << 10) | ((col) & 0x03E0)  | (((col) & 0x7C00) >> 10) )
 
+static void DrawFPSOverlay(void)
+{
+    u16 *sTop = (u16*)&GPU_screen; // top screen buffer pointer
+    const int scrw = 256;
+    const int scrh = 192;
+
+    // 3x5 font for digits and letters used (bits left-to-right)
+    };
+    static const unsigned char font3x5_F[5] = {7,4,7,4,4};
+    static const unsigned char font3x5_P[5] = {7,5,7,4,4};
+    static const unsigned char font3x5_S[5] = {7,4,7,1,7};
+    static const unsigned char font3x5_colon[5] = {0,2,0,2,0};
+
+    char txt[16];
+    int fpsval = FPS;
+    if (fpsval < 0) fpsval = 0;
+    if (fpsval > 999) fpsval = 999;
+    sprintf(txt, "FPS:%d", fpsval);
+
+    const int char_w = 3;
+    const int char_h = 5;
+    const int spacing = 1;
+    int len = strlen(txt);
+    int total_w = len * (char_w + spacing);
+    int margin = 4;
+    int start_x = scrw - margin - total_w;
+    if (start_x < 0) start_x = 0;
+    int start_y = 2;
+
+    const u16 color = 0x03E0; // bright green in RGB15
+
+    for (int ci = 0; ci < len; ++ci) {
+        char c = txt[ci];
+        const unsigned char *glyph = NULL;
+        if (c >= '0' && c <= '9') glyph = font3x5_digits[c - '0'];
+        else if (c == 'F') glyph = font3x5_F;
+        else if (c == 'P') glyph = font3x5_P;
+        else if (c == 'S') glyph = font3x5_S;
+        else if (c == ':') glyph = font3x5_colon;
+        else glyph = NULL;
+
+        int cx = start_x + ci * (char_w + spacing);
+        int cy = start_y;
+        if (!glyph) continue;
+
+        for (int row = 0; row < char_h; ++row) {
+            unsigned char bits = glyph[row];
+            int y = cy + row;
+            if (y < 0 || y >= scrh) continue;
+            u16 *rowptr = sTop + y * scrw;
+            for (int col = 0; col < char_w; ++col) {
+                if (bits & (1 << (char_w - 1 - col))) {
+                    int x = cx + col;
+                    if (x < 0 || x >= scrw) continue;
+                    rowptr[x] = color;
+                }
+            }
+        }
+    }
+}
+
 static void Draw(void) {
 	// convert to 4x4 textels for GX
 	u16 *sTop = (u16*)&GPU_screen;
@@ -392,6 +453,8 @@ static void Draw(void) {
 	u16 *dTop = TopScreen;
 	u16 *dBottom = BottomScreen;
 	LWP_MutexLock(vidmutex);
+
+	if (showfps) DrawFPSOverlay();
 
 	for (int y = 0; y < 48; y++) {
 		for (int h = 0; h < 4; h++) {
@@ -429,7 +492,7 @@ static void do_screen_layout()
 	if(++screen_layout >= SCREEN_MAX)
 		screen_layout = SCREEN_VERT_NORMAL;
 
-	switch(screen_layout) 
+	switch(screen_layout)
 	{
 		case SCREEN_HORI_NORMAL:
 			// not scaled
@@ -629,38 +692,46 @@ void Execute() {
 	return;
 }
 
-void ShowFPS() {
-	u32 fps_timing = 0;
-	u32 fps_frame_counter = 0;
-	u32 fps_previous_time = 0;
-	u32 fps_temp_time;
-	float fps;
+// persistent FPS updater — call once per frame (before Draw())
+void ShowFPS()
+{
+    // persistent state across calls
+    static u32 fps_frame_counter = 0;
+    static u32 fps_accum_ms = 0;
+    static u32 fps_last_time_ms = 0;
 
-	fps_frame_counter += 1;
-	fps_temp_time = ticks_to_millisecs(gettime());
-	fps_timing += fps_temp_time - fps_previous_time;
-	fps_previous_time = fps_temp_time;
+    // get current time in ms (project already provides gettime() and ticks_to_millisecs)
+    u32 now_ms = ticks_to_millisecs(gettime());
 
-	if ( fps_frame_counter == NUM_FRAMES_TO_TIME) {
-		fps = (float)fps_timing;
-		fps /= NUM_FRAMES_TO_TIME * 1000.f;
-		fps = 1.0f / fps;
-		fps_frame_counter = 0;
-		fps_timing = 0;
-		
-	}
+    if (fps_last_time_ms == 0) fps_last_time_ms = now_ms;
+
+    // accumulate
+    fps_frame_counter++;
+    fps_accum_ms += (now_ms - fps_last_time_ms);
+    fps_last_time_ms = now_ms;
+
+    // update once per second (or when accumulated >= 1000 ms)
+    if (fps_accum_ms >= 1000) {
+        if (fps_accum_ms > 0) {
+            FPS = (int)((u64)fps_frame_counter * 1000ULL / (u64)fps_accum_ms);
+        } else {
+            FPS = 0;
+        }
+        fps_frame_counter = 0;
+        fps_accum_ms = 0;
+    }
 }
 
-void DSExec(){  
-   
+void DSExec()
+{
 	PAD_ScanPads();
 	WPAD_ScanPads();
-	
+
 	wpad = WPAD_ButtonsDown(WPAD_CHAN_0);
 	pad = PAD_ButtonsDown(0);
 
 	process_ctrls_event(&keypad, nds_screen_size_ratio);
-	
+
 	// Update mouse position and click
 	if(mouse.down) {
 		NDS_setTouchPos(mouse.x, mouse.y);//ir.x, ir.y
@@ -704,20 +775,19 @@ void DSExec(){
 
 	NDS_exec<TRUE>(0);
 
-	if (!SkipFrameTracker) Draw(); // only update when !Frame skip tracker
-	
+	// update FPS counters first so Draw() can render the latest value
+	if (showfps) ShowFPS();
 
-	if(showfps) ShowFPS();
+	// only update when !Frame skip tracker
+	if (!SkipFrameTracker) Draw();
 }
 
 void Pause(){
-
 	for(;;){
 		WPAD_ScanPads();
 		if(WPAD_ButtonsDown(WPAD_CHAN_0)&WPAD_BUTTON_A)
 			break;
 	}
-
 }
 
 bool PickDevice() {
@@ -736,12 +806,14 @@ bool PickDevice() {
         "0","1","2","3","4","5","6","7","8","9",
         "10","11","12","13","14","15","16","17","18","19","20"
     };
+    static const char* showFpsOpts[] = { "No", "Yes" }; // new Show FPS options
 
     // Menu items: add more entries here to extend the menu
     static MenuItem menuItems[] = {
         { "Select Device:",   deviceOpts,   2, 0 }, // default SD (sel=0)
         { "Select Renderer:", rendererOpts, 2, 0 }, // default Soft (sel=0)
-        { "SkipFrame:",       skipOpts,    21, 0 }  // default 0
+        { "SkipFrame:",       skipOpts,    21, 0 }, // default 0
+        { "Show FPS:",        showFpsOpts,  2, 0 }  // default No (sel=0) -- newly added
     };
 
     const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
@@ -859,6 +931,9 @@ bool PickDevice() {
             // SkipFrame selection is menuItems[2].sel -> integer 0..20
             // Write to global SkipFrame variable (declared elsewhere)
             SkipFrame = menuItems[2].sel;
+
+            // Wire showfps (frontend.h) from menuItems[3]
+            showfps = (menuItems[3].sel != 0);
 
             if (!wantUSB) {
                 // SD chosen: proceed normally
