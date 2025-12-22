@@ -93,6 +93,7 @@ static bool show_console = true;
 static int SkipFrame = 0;
 static int SkipFrameTracker = 0;
 static u32 pad, wpad;
+int FPS; //init
 
 // Which rendering core we are using (SoftRast or GX)
 u8 current3Dcore = 1;
@@ -385,6 +386,7 @@ void init(){
 
 #define RGB15_REVERSE(col) ( 0x8000 | (((col) & 0x001F) << 10) | ((col) & 0x03E0)  | (((col) & 0x7C00) >> 10) )
 
+// Draw a tiny 3x5 green "FPS:NN" into GPU_screen top-right (RGB15 u16)
 static void DrawFPSOverlay(void)
 {
     u16 *sTop = (u16*)&GPU_screen; // top screen buffer pointer
@@ -392,6 +394,9 @@ static void DrawFPSOverlay(void)
     const int scrh = 192;
 
     // 3x5 font for digits and letters used (bits left-to-right)
+    static const unsigned char font3x5_digits[10][5] = {
+        {7,5,5,5,7}, {2,6,2,2,7}, {7,1,7,4,7}, {7,1,7,1,7}, {5,5,7,1,1},
+        {7,4,7,1,7}, {7,4,7,5,7}, {7,1,2,2,2}, {7,5,7,5,7}, {7,5,7,1,7}
     };
     static const unsigned char font3x5_F[5] = {7,4,7,4,4};
     static const unsigned char font3x5_P[5] = {7,5,7,4,4};
