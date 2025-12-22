@@ -806,7 +806,7 @@ bool PickDevice() {
 
     // Options for each menu item
     static const char* deviceOpts[]   = { "SD",  "USB" };
-    static const char* rendererOpts[] = { "Soft", "GX" };
+    static const char* rendererOpts[] = { "None", "GX", "Soft" };
     static const char* skipOpts[] = {
         "0","1","2","3","4","5","6","7","8","9",
         "10","11","12","13","14","15","16","17","18","19","20"
@@ -816,9 +816,9 @@ bool PickDevice() {
     // Menu items: add more entries here to extend the menu
     static MenuItem menuItems[] = {
         { "Select Device:",   deviceOpts,   2, 0 }, // default SD (sel=0)
-        { "Select Renderer:", rendererOpts, 2, 0 }, // default Soft (sel=0)
+        { "Select Renderer:", rendererOpts, 3, 2 }, // default Soft (sel=2)
         { "SkipFrame:",       skipOpts,    21, 0 }, // default 0
-        { "Show FPS:",        showFpsOpts,  2, 0 }  // default No (sel=0) -- newly added
+        { "Show FPS:",        showFpsOpts,  2, 0 }  // default No (sel=0)
     };
 
     const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
@@ -925,13 +925,8 @@ bool PickDevice() {
             // Device selection is menuItems[0].sel: 0 = SD, 1 = USB
             bool wantUSB = (menuItems[0].sel != 0);
 
-            // Renderer selection is menuItems[1].sel: 0 = Soft, 1 = GX
-            useGX = (menuItems[1].sel != 0);
-            if (useGX) {
-                current3Dcore = 1; // Use GX as before
-            } else {
-                current3Dcore = 2; // Soft raster
-            }
+			// Renderer selection is directly mapped: menu index == core index
+			current3Dcore = menuItems[1].sel;
 
             // SkipFrame selection is menuItems[2].sel -> integer 0..20
             // Write to global SkipFrame variable (declared elsewhere)
