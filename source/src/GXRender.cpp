@@ -20,8 +20,6 @@
 
 #include <queue>
 #include "GXRender.h"
-#include "utils/sd_logger.h"
-
 #include "GXTexManager.h"
 #include "NDSSystem.h"
 #include "gfx3d.h"
@@ -176,12 +174,6 @@ static void GXReset(){
 //----------------------------------------
 
 static char GXInit(){
-
-    // Initialize SD logger for diagnostics
-    SDLogger_Init();
-    SDLogger_Log("GX_INIT_START: entering GXInit");
-
-
 	// Create our Texture Manager
 	texMan = new TexManager();
 
@@ -189,7 +181,6 @@ static char GXInit(){
 	
 	GXReset();
 
-	SDLogger_Log("GX_INIT_DONE: GXInit completed");
 	return 1;
 }
 
@@ -207,10 +198,6 @@ static char GXInit(){
 //----------------------------------------
 
 static void GXClose(){
-
-    SDLogger_Log("GX_CLOSE: entering GXClose");
-
-
 	// Kill the texture cache to free all of the texture ids
 	TexCache_Reset();
 
@@ -237,10 +224,6 @@ static void GXClose(){
 //----------------------------------------
 
 static void setTexture(u32 format, u32 texpal){
-
-    SDLogger_Log("TEX_UPLOAD_FUNC: setTexture called format=%u texpal=%u", (unsigned)format, (unsigned)texpal);
-
-
 	textureFormat = format;
 	texturePalette = texpal;
 
@@ -259,14 +242,6 @@ static void setTexture(u32 format, u32 texpal){
 
 			// We must convert the texture into a GX-friendly format
 			u8* src = currTexture->decoded;
-            // Diagnostic: log texture pointers and sizes
-            if (!currTexture) {
-                SDLogger_Log("TEX_UPLOAD_ABORT: currTexture is NULL");
-            } else {
-                SDLogger_Log("TEX_UPLOAD_PRE: texid=%u decoded=%p sizeX=%u sizeY=%u decode_len=%u texformat=%u",
-                    (unsigned)currTexture->texid, currTexture->decoded, (unsigned)currTexture->sizeX, (unsigned)currTexture->sizeY, (unsigned)currTexture->decode_len, (unsigned)currTexture->texformat);
-            }
-
 
 			u32 curTexSizeY = currTexture->sizeY;
 			u32 curTexSizeX = currTexture->sizeX;
@@ -291,8 +266,6 @@ static void setTexture(u32 format, u32 texpal){
 
 			// Make sure everything is finished before we move on.
 			DCFlushRange(currTexture->decoded, currTexture->decode_len);
-            SDLogger_Log("TEX_UPLOAD_POST: texid=%u decoded=%p decode_len=%u", (unsigned)currTexture->texid, currTexture->decoded, (unsigned)currTexture->decode_len);
-
 
 			// Put that data into a texture
 			GX_InitTexObj(texMan->gxObj(currTexture->texid),
@@ -323,7 +296,6 @@ static void setTexture(u32 format, u32 texpal){
 		GX_SetTexCoordGen(GX_TEXCOORD0,GX_TG_MTX3x4, GX_TG_TEX0, GX_TEXMTX0);
 		//*/
 	}
-
 }
 
 //----------------------------------------
@@ -487,10 +459,6 @@ static void InstallPolygonAttrib(unsigned long val){
 //----------------------------------------
 
 static void ReadFramebuffer(){
-
-    SDLogger_Log("EFB_READFRAME_START: entering ReadFramebuffer");
-
-
 	GX_DrawDone();
 
 	GX_SetTexCopySrc(0, 0, 256, 192);
@@ -501,9 +469,7 @@ static void ReadFramebuffer(){
 	GX_SetCopyFilter(GX_FALSE, NULL, GX_FALSE, NULL);
 
 	// Copy the screen into a texture
-	    SDLogger_Log("EFB_COPY_PRE: GX_CopyTex -> GPU_screen3D (size=256x192)");
-GX_CopyTex((void*)GPU_screen3D, GX_TRUE);
-    SDLogger_Log("EFB_COPY_POST: GX_CopyTex completed");
+	GX_CopyTex((void*)GPU_screen3D, GX_TRUE);
 
 	GX_PixModeSync();
 	//--DCN: PixModeSync should take care of flushing.
@@ -536,7 +502,6 @@ GX_CopyTex((void*)GPU_screen3D, GX_TRUE);
 	}
 
 	DCFlushRange(gfx3d_convertedScreen, 256*192*4);
-    SDLogger_Log("EFB_CONVERT_DONE: gfx3d_convertedScreen flushed");
 
 	// Restore vertical de-flicker filter mode
 	GX_SetCopyFilter(rmode->aa, rmode->sample_pattern, GX_TRUE, rmode->vfilter);
@@ -557,10 +522,6 @@ GX_CopyTex((void*)GPU_screen3D, GX_TRUE);
 //----------------------------------------
 
 static void GXRender(){
-
-    SDLogger_Log("GXRENDER_START: entering GXRender");
-
-
 	// Lock our drawing thread
 	LWP_MutexLock(vidmutex);
 
@@ -641,9 +602,7 @@ static void GXRender(){
 				
 				--j;
 			}while(j >= 0);
-		
 		GX_End();
-
 	}
 
 	// Needs to happen before ending because it could free some textureids for expired cache items
@@ -656,9 +615,7 @@ static void GXRender(){
 	ResetVideoSettings();
 
 	// Unlock the thread
-	    SDLogger_Log("GXRENDER_END: leaving GXRender");
 	LWP_MutexUnlock(vidmutex);
-		
 }
 
 

@@ -49,10 +49,10 @@
 //#include <sdcard/wiisd_io.h>
 #include <ogc/usbstorage.h>
 
-
 #include "gekko_utils/usb2storage.h"
 #include "gekko_utils/mload.h"
 #include "utils/profiler.h"
+#include "utils/sd_logger.h"
 
 #define NUM_FRAMES_TO_TIME 60
 #define FPS_LIMITER_FRAME_PERIOD 8
@@ -219,7 +219,10 @@ int main(int argc, char **argv)
 			sleep(1);
 		}
 		sprintf(rom_filename, "usb:/DS/ROMS");
-	}
+	} // finished getting device
+	
+	SDLogger_Init();
+	SDLogger_Log("GX_INIT_START: entering GXInit");
 
 	if(FileBrowser(rom_filename) != 0)
 		quit_game = true;
@@ -258,7 +261,17 @@ int main(int argc, char **argv)
 	log_console_enable_video(false);
 	
 	Execute();
-	
+
+	// Final profiler flush on shutdown (safe point)
+	// Only attempt a dump if the profiler is enabled to avoid unnecessary I/O.
+	if (Profiler::Instance().IsEnabled()) {
+		// Ensure SDLogger is initialized earlier in main; this call will append JSONL and rotate as needed.
+		Profiler::Instance().DumpToSDLogger();
+		// Optional SDLogger note for verification
+		SDLogger_Log("Profiler final dump written on shutdown");
+	}
+
+	// Normal exit
 	exit(0);
 }
 
