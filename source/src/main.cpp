@@ -52,6 +52,7 @@
 
 #include "gekko_utils/usb2storage.h"
 #include "gekko_utils/mload.h"
+#include "utils/profiler.h"
 
 #define NUM_FRAMES_TO_TIME 60
 #define FPS_LIMITER_FRAME_PERIOD 8
@@ -796,191 +797,198 @@ void Pause(){
 }
 
 bool PickDevice() {
-    // Menu item representation using C-style arrays for easy insertion into main.cpp
-    struct MenuItem {
-        const char* label;      // label text (e.g., "Select Device:")
-        const char** opts;      // pointer to array of option strings
-        int optCount;           // number of options
-        int sel;                // currently selected option index
-    };
+	// Menu item representation using C-style arrays for easy insertion into main.cpp
+	struct MenuItem {
+		const char* label;      // label text (e.g., "Select Device:")
+		const char** opts;      // pointer to array of option strings
+		int optCount;           // number of options
+		int sel;                // currently selected option index
+	};
 
-    // Options for each menu item
-    static const char* deviceOpts[]   = { "SD",  "USB" };
-    static const char* rendererOpts[] = { "None", "GX", "Soft" };
-    static const char* skipOpts[] = {
-        "0","1","2","3","4","5","6","7","8","9",
-        "10","11","12","13","14","15","16","17","18","19","20"
-    };
-    static const char* showFpsOpts[] = { "No", "Yes" }; // new Show FPS options
+	// Options for each menu item
+	static const char* deviceOpts[]   = { "SD",  "USB" };
+	static const char* rendererOpts[] = { "None", "GX", "Soft" };
+	static const char* skipOpts[] = {
+		"0","1","2","3","4","5","6","7","8","9",
+		"10","11","12","13","14","15","16","17","18","19","20"
+	};
+	static const char* showFpsOpts[] = { "No", "Yes" }; // new Show FPS options
+	static const char* profilerOpts[] = { "Off", "On" }; // Host Profiler toggle
 
-    // Menu items: add more entries here to extend the menu
-    static MenuItem menuItems[] = {
-        { "Select Device:",   deviceOpts,   2, 0 }, // default SD (sel=0)
-        { "Select Renderer:", rendererOpts, 3, 2 }, // default Soft (sel=2)
-        { "SkipFrame:",       skipOpts,    21, 0 }, // default 0
-        { "Show FPS:",        showFpsOpts,  2, 0 }  // default No (sel=0)
-    };
+	// Menu items: add more entries here to extend the menu
+	static MenuItem menuItems[] = {
+		{ "Select Device:",   deviceOpts,   2, 0 }, // default SD (sel=0)
+		{ "Select Renderer:", rendererOpts, 3, 2 }, // default Soft (sel=2)
+		{ "SkipFrame:",       skipOpts,    21, 0 }, // default 0
+		{ "Show FPS:",        showFpsOpts,  2, 0 }, // default No (sel=0)
+		{ "Host Profiler:",   profilerOpts, 2, 0 }  // default Off (sel=0)
+	};
 
-    const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
-    int highlight = 0; // which menu item is highlighted (0..menuCount-1)
+	const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
+	int highlight = 0; // which menu item is highlighted (0..menuCount-1)
 
-    // Initialize defaults (preserve original behavior)
-    bool device = false;    // false -> SD, true -> USB
-    bool useGX = false;
-    current3Dcore = 2; // Soft Raster by default (same as original)
+	// Initialize defaults (preserve original behavior)
+	bool device = false;    // false -> SD, true -> USB
+	current3Dcore = 2; // Soft Raster by default (same as original)
 
-    // Input edge detection
-    bool prevLeft = false, prevRight = false, prevUp = false, prevDown = false;
-    bool prevA = false, prevB = false;
+	// Input edge detection
+	bool prevLeft = false, prevRight = false, prevUp = false, prevDown = false;
+	bool prevA = false, prevB = false;
 
-    // Input cooldown: number of frames to ignore inputs on menu entry
-    // (helps avoid accidental double-press when returning from credits)
-    const int cooldownFramesInit = 10; // ~10 frames (adjust if needed)
-    int cooldownFrames = cooldownFramesInit;
+	// Input cooldown: number of frames to ignore inputs on menu entry
+	// (helps avoid accidental double-press when returning from credits)
+	const int cooldownFramesInit = 10; // ~10 frames (adjust if needed)
+	int cooldownFrames = cooldownFramesInit;
 
-    // Warning flash timer (frames). When >0, show yellow warning line.
-    int warnFrames = 0;
-    const int warnFramesInit = 120; // ~2 seconds at 60Hz
+	// Warning flash timer (frames). When >0, show yellow warning line.
+	int warnFrames = 0;
+	const int warnFramesInit = 120; // ~2 seconds at 60Hz
 
-    while (true) {
-        PAD_ScanPads();
-        WPAD_ScanPads();
+	while (true) {
+		PAD_ScanPads();
+		WPAD_ScanPads();
 
-        // Read raw inputs (use the same GetInput calls you already have)
-        bool left  = GetInput(LEFT, LEFT, LEFT);
-        bool right = GetInput(RIGHT, RIGHT, RIGHT);
-        bool up    = GetInput(UP, UP, UP);
-        bool down  = GetInput(DOWN, DOWN, DOWN);
-        bool a     = GetInput(A, A, A);
-        bool b     = GetInput(B, B, B);
+		// Read raw inputs (use the same GetInput calls you already have)
+		bool left  = GetInput(LEFT, LEFT, LEFT);
+		bool right = GetInput(RIGHT, RIGHT, RIGHT);
+		bool up    = GetInput(UP, UP, UP);
+		bool down  = GetInput(DOWN, DOWN, DOWN);
+		bool a     = GetInput(A, A, A);
+		bool b     = GetInput(B, B, B);
 
-        // Render menu (console-style, same as original printf usage)
-        // Clear and home cursor (you already used these sequences)
-        printf("\x1b[2J");
-        printf("\x1b[2;0H");
-        printf("Welcome to DeSmuME Wii v2!!!\n\n");
+		// Render menu (console-style, same as original printf usage)
+		// Clear and home cursor (you already used these sequences)
+		printf("\x1b[2J");
+		printf("\x1b[2;0H");
+		printf("Welcome to DeSmuME Wii v2!!!\n\n");
 
-        for (int i = 0; i < menuCount; ++i) {
-            MenuItem &mi = menuItems[i];
+		for (int i = 0; i < menuCount; ++i) {
+			MenuItem &mi = menuItems[i];
 
-            if (i == highlight) {
-                // Highlighted: print the whole line in green, then reset color
-                // \x1b[32m = green, \x1b[0m = reset
-                printf("  \x1b[32m%s << %s >>\x1b[0m\n", mi.label, mi.opts[mi.sel]);
-            } else {
-                // Non-highlighted line (normal color)
-                printf("  %s << %s >>\n", mi.label, mi.opts[mi.sel]);
-            }
-        }
+			if (i == highlight) {
+				// Highlighted: print the whole line in green, then reset color
+				// \x1b[32m = green, \x1b[0m = reset
+				printf("  \x1b[32m%s << %s >>\x1b[0m\n", mi.label, mi.opts[mi.sel]);
+			} else {
+				// Non-highlighted line (normal color)
+				printf("  %s << %s >>\n", mi.label, mi.opts[mi.sel]);
+			}
+		}
 
-        printf("\nPress B to see the credits.\n");
+		printf("\nPress B to see the credits.\n");
 
-        // If warning active, print it in yellow below the menu
-        if (warnFrames > 0) {
-            // \x1b[33m = yellow
-            printf("\x1b[33mWarning: USB device not found. Please insert USB or choose SD.\x1b[0m\n");
-        }
+		// If warning active, print it in yellow below the menu
+		if (warnFrames > 0) {
+			// \x1b[33m = yellow
+			printf("\x1b[33mWarning: USB device not found. Please insert USB or choose SD.\x1b[0m\n");
+		}
 
-        // Input handling: if cooldown active, do not change menu state.
-        // Also update prev* to current so we don't get a spurious edge after cooldown.
-        if (cooldownFrames > 0) {
-            // decrement cooldown and set prev states to current to avoid edge triggers
-            cooldownFrames--;
-            prevLeft = left;
-            prevRight = right;
-            prevUp = up;
-            prevDown = down;
-            prevA = a;
-            prevB = b;
+		// Input handling: if cooldown active, do not change menu state.
+		// Also update prev* to current so we don't get a spurious edge after cooldown.
+		if (cooldownFrames > 0) {
+			// decrement cooldown and set prev states to current to avoid edge triggers
+			cooldownFrames--;
+			prevLeft = left;
+			prevRight = right;
+			prevUp = up;
+			prevDown = down;
+			prevA = a;
+			prevB = b;
 
-            // decrement warning timer as well
-            if (warnFrames > 0) warnFrames--;
-            VIDEO_WaitVSync();
-            continue;
-        }
+			// decrement warning timer as well
+			if (warnFrames > 0) warnFrames--;
+			VIDEO_WaitVSync();
+			continue;
+		}
 
-        // Normal input handling: Up/Down moves highlight (wrap), Left/Right toggles option for highlighted item.
-        if (up && !prevUp) {
-            highlight = (highlight - 1 + menuCount) % menuCount;
-        }
-        if (down && !prevDown) {
-            highlight = (highlight + 1) % menuCount;
-        }
+		// Normal input handling: Up/Down moves highlight (wrap), Left/Right toggles option for highlighted item.
+		if (up && !prevUp) {
+			highlight = (highlight - 1 + menuCount) % menuCount;
+		}
+		if (down && !prevDown) {
+			highlight = (highlight + 1) % menuCount;
+		}
 
-        if (left && !prevLeft) {
-            MenuItem &mi = menuItems[highlight];
-            if (mi.optCount > 0) {
-                mi.sel = (mi.sel - 1 + mi.optCount) % mi.optCount;
-            }
-        }
-        if (right && !prevRight) {
-            MenuItem &mi = menuItems[highlight];
-            if (mi.optCount > 0) {
-                mi.sel = (mi.sel + 1) % mi.optCount;
-            }
-        }
+		if (left && !prevLeft) {
+			MenuItem &mi = menuItems[highlight];
+			if (mi.optCount > 0) {
+				mi.sel = (mi.sel - 1 + mi.optCount) % mi.optCount;
+			}
+		}
+		if (right && !prevRight) {
+			MenuItem &mi = menuItems[highlight];
+			if (mi.optCount > 0) {
+				mi.sel = (mi.sel + 1) % mi.optCount;
+			}
+		}
 
-        // Apply A: accept selections and exit loop
-        if (a && !prevA) {
-            // Device selection is menuItems[0].sel: 0 = SD, 1 = USB
-            bool wantUSB = (menuItems[0].sel != 0);
+		// Apply A: accept selections and exit loop
+		if (a && !prevA) {
+			// Device selection is menuItems[0].sel: 0 = SD, 1 = USB
+			bool wantUSB = (menuItems[0].sel != 0);
 
 			// Renderer selection is directly mapped: menu index == core index
 			current3Dcore = menuItems[1].sel;
 
-            // SkipFrame selection is menuItems[2].sel -> integer 0..20
-            // Write to global SkipFrame variable (declared elsewhere)
-            SkipFrame = menuItems[2].sel;
+			// SkipFrame selection is menuItems[2].sel -> integer 0..20
+			// Write to global SkipFrame variable (declared elsewhere)
+			SkipFrame = menuItems[2].sel;
 
-            // Wire showfps (frontend.h) from menuItems[3]
-            showfps = (menuItems[3].sel != 0);
+			// Wire showfps (frontend.h) from menuItems[3]
+			showfps = (menuItems[3].sel != 0);
 
-            if (!wantUSB) {
-                // SD chosen: proceed normally
-                device = false;
-                break;
-            } else {
-                // USB chosen: attempt a quick mount check before leaving menu.
-                // If mount fails, flash a warning and stay in menu.
-                bool isMounted = fatMountSimple("usb", &__io_usbstorage);
-                if (!isMounted) {
-                    // flash warning for a few seconds and do not proceed
-                    warnFrames = warnFramesInit;
-                    // ensure we don't immediately re-trigger due to held A: set prevA true
-                    prevA = true;
-                } else {
-                    // mounted successfully; proceed
-                    device = true;
-                    break;
-                }
-            }
-        }
+			// Host Profiler selection is menuItems[4].sel -> 0 = Off, 1 = On
+			bool profilerEnabled = (menuItems[4].sel != 0);
 
-        // B shows credits (same as original)
-        if (b && !prevB) {
-            ShowCredits();
-            // After returning from credits, set a short cooldown to avoid accidental double-press
-            cooldownFrames = cooldownFramesInit;
-            // Also reset prev states to avoid immediate edge triggers
-            prevLeft = prevRight = prevUp = prevDown = prevA = prevB = false;
-        }
+			// Apply profiler state (non-blocking)
+			Profiler::Instance().SetEnabled(profilerEnabled);
 
-        // Save previous states for edge detection
-        prevLeft  = left;
-        prevRight = right;
-        prevUp    = up;
-        prevDown  = down;
-        prevA     = a;
-        prevB     = b;
+			if (!wantUSB) {
+				// SD chosen: proceed normally
+				device = false;
+				break;
+			} else {
+				// USB chosen: attempt a quick mount check before leaving menu.
+				// If mount fails, flash a warning and stay in menu.
+				bool isMounted = fatMountSimple("usb", &__io_usbstorage);
+				if (!isMounted) {
+					// flash warning for a few seconds and do not proceed
+					warnFrames = warnFramesInit;
+					// ensure we don't immediately re-trigger due to held A: set prevA true
+					prevA = true;
+				} else {
+					// mounted successfully; proceed
+					device = true;
+					break;
+				}
+			}
+		}
 
-        // decrement warning timer if active
-        if (warnFrames > 0) warnFrames--;
+		// B shows credits (same as original)
+		if (b && !prevB) {
+			ShowCredits();
+			// After returning from credits, set a short cooldown to avoid accidental double-press
+			cooldownFrames = cooldownFramesInit;
+			// Also reset prev states to avoid immediate edge triggers
+			prevLeft = prevRight = prevUp = prevDown = prevA = prevB = false;
+		}
 
-        VIDEO_WaitVSync();
-    }
+		// Save previous states for edge detection
+		prevLeft  = left;
+		prevRight = right;
+		prevUp    = up;
+		prevDown  = down;
+		prevA     = a;
+		prevB     = b;
 
-    // Return device selection (false = SD, true = USB) to match original signature
-    return device;
+		// decrement warning timer if active
+		if (warnFrames > 0) warnFrames--;
+
+		VIDEO_WaitVSync();
+	}
+
+	// Return device selection (false = SD, true = USB) to match original signature
+	return device;
 }
 
 void ShowCredits() {
