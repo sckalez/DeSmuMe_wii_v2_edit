@@ -94,7 +94,8 @@ static bool show_console = true;
 static int SkipFrame = 0;
 static int SkipFrameTracker = 0;
 static u32 pad, wpad;
-int FPS; //init
+int FPS;
+static bool g_pendingProfilerEnabled = false;
 
 // Which rendering core we are using (SoftRast or GX)
 u8 current3Dcore = 1;
@@ -220,9 +221,20 @@ int main(int argc, char **argv)
 		}
 		sprintf(rom_filename, "usb:/DS/ROMS");
 	} // finished getting device
-	
+
 	SDLogger_Init();
-	SDLogger_Log("GX_INIT_START: entering GXInit");
+	SDLogger_Log("SDLOGGER: Init successful");
+
+	// Initialize profiler minimally
+	Profiler::InitProfiler();
+	// Precreate scopes now that filesystem/logger are ready
+	Profiler::PrecreateScopes();
+	// Apply user preference
+	if (g_pendingProfilerEnabled) {
+		Profiler::Instance().SetEnabled(true);
+	} else {
+		Profiler::Instance().SetEnabled(false);
+	}
 
 	if(FileBrowser(rom_filename) != 0)
 		quit_game = true;
@@ -263,13 +275,8 @@ int main(int argc, char **argv)
 	Execute();
 
 	// Final profiler flush on shutdown (safe point)
-	// Only attempt a dump if the profiler is enabled to avoid unnecessary I/O.
-	if (Profiler::Instance().IsEnabled()) {
-		// Ensure SDLogger is initialized earlier in main; this call will append JSONL and rotate as needed.
-		Profiler::Instance().DumpToSDLogger();
-		// Optional SDLogger note for verification
-		SDLogger_Log("Profiler final dump written on shutdown");
-	}
+	Profiler::ShutdownProfiler(); // final aggregated JSONL dump and cleanup
+	SDLogger_Log("Profiler final dump written on shutdown");
 
 	// Normal exit
 	exit(0);
@@ -799,6 +806,9 @@ void DSExec()
 
 	// only update when !Frame skip tracker
 	if (!SkipFrameTracker) Draw();
+	
+	// Per-frame profiler tick: triggers periodic JSONL dumps every 10s (no background thread)
+	Profiler::TickIfNeeded();
 }
 
 void Pause(){
@@ -953,17 +963,21 @@ bool PickDevice() {
 			// Host Profiler selection is menuItems[4].sel -> 0 = Off, 1 = On
 			bool profilerEnabled = (menuItems[4].sel != 0);
 
-			// Apply profiler state (non-blocking)
-			Profiler::Instance().SetEnabled(profilerEnabled);
+			// inside PickDevice(), replace the profiler code with:
+			g_pendingProfilerEnabled = profilerEnabled;
 
 			if (!wantUSB) {
+				SDLogger_Log("TRACE: PickDevice - SD chosen, breaking out");
 				// SD chosen: proceed normally
 				device = false;
 				break;
 			} else {
+				SDLogger_Log("TRACE: PickDevice - USB chosen, checking mount");
 				// USB chosen: attempt a quick mount check before leaving menu.
 				// If mount fails, flash a warning and stay in menu.
 				bool isMounted = fatMountSimple("usb", &__io_usbstorage);
+				SDLogger_Log("TRACE: PickDevice - fatMountSimple returned %d", isMounted ? 1 : 0); 
+
 				if (!isMounted) {
 					// flash warning for a few seconds and do not proceed
 					warnFrames = warnFramesInit;
