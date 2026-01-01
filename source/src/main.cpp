@@ -1,24 +1,24 @@
 /*
-    Copyright (C) 2006,2007 DeSmuME Team
-    Copyright (C) 2007 Pascal Giard (evilynux)
-    Copyright (C) 2009 Yoshihiro (DsonPSP)
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2006,2007 DeSmuME Team
+	Copyright (C) 2007 Pascal Giard (evilynux)
+	Copyright (C) 2009 Yoshihiro (DsonPSP)
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <stdio.h>
 #include <unistd.h>
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 	IO::USB OurUSB;
 	OurUSB.Startup();
 	OurUSB.Mount();
-	
+
 //	struct armcpu_memory_iface *arm9_memio = &arm9_base_memory_iface;
 //	struct armcpu_memory_iface *arm7_memio = &arm7_base_memory_iface;
 //	struct armcpu_ctrl_iface *arm9_ctrl_iface;
@@ -201,18 +201,18 @@ int main(int argc, char **argv)
 	//log_console_enable_log(true);
 
 	VIDEO_WaitVSync();
-	
 	bool device = PickDevice();
-  
 	VIDEO_WaitVSync();
 
 	if(!device){
+		// Use SD
 		fatUnmount("sd:/");
 		__io_wiisd.shutdown();
 		fatMountSimple("sd", &__io_wiisd);
 		sprintf(rom_filename, "sd:/DS/ROMS");
 	}
 	else {
+		// Use USB
 		fatUnmount("usb:/");
 		for(int i = 0; i < 11; i++) {
 			bool isMounted = fatMountSimple("usb", &__io_usbstorage);
@@ -222,18 +222,17 @@ int main(int argc, char **argv)
 		sprintf(rom_filename, "usb:/DS/ROMS");
 	} // finished getting device
 
+	//future: rename these two functions and/or let it export to the actual chosen device
 	SDLogger_Init();
 	SDLogger_Log("SDLOGGER: Init successful");
 
-	// Initialize profiler minimally
-	Profiler::InitProfiler();
-	// Precreate scopes now that filesystem/logger are ready
-	Profiler::PrecreateScopes();
-	// Apply user preference
+	// Profiler: initialize only if user requested it in PickDevice()
+	//static bool profiler_initialized = false;
 	if (g_pendingProfilerEnabled) {
+		Profiler::InitProfiler();
+		//Profiler::PrecreateScopes(); //let's skip this for now
 		Profiler::Instance().SetEnabled(true);
-	} else {
-		Profiler::Instance().SetEnabled(false);
+		//profiler_initialized = true;
 	}
 
 	if(FileBrowser(rom_filename) != 0)
@@ -275,8 +274,11 @@ int main(int argc, char **argv)
 	Execute();
 
 	// Final profiler flush on shutdown (safe point)
-	Profiler::ShutdownProfiler(); // final aggregated JSONL dump and cleanup
-	SDLogger_Log("Profiler final dump written on shutdown");
+	//if (profiler_initialized) {
+	if (g_pendingProfilerEnabled) {
+		Profiler::ShutdownProfiler(); // final aggregated JSONL dump and cleanup
+		SDLogger_Log("Profiler final dump written on shutdown");
+	}
 
 	// Normal exit
 	exit(0);
@@ -410,69 +412,76 @@ void init(){
 // Draw a tiny 3x5 green "FPS:NN" into GPU_screen top-right (RGB15 u16)
 static void DrawFPSOverlay(void)
 {
-    u16 *sTop = (u16*)&GPU_screen; // top screen buffer pointer
-    const int scrw = 256;
-    const int scrh = 192;
+	u16 *sTop = (u16*)&GPU_screen; // top screen buffer pointer
+	const int scrw = 256;
+	const int scrh = 192;
 
-    // 3x5 font for digits and letters used (bits left-to-right)
-    static const unsigned char font3x5_digits[10][5] = {
-        {7,5,5,5,7}, {2,6,2,2,7}, {7,1,7,4,7}, {7,1,7,1,7}, {5,5,7,1,1},
-        {7,4,7,1,7}, {7,4,7,5,7}, {7,1,2,2,2}, {7,5,7,5,7}, {7,5,7,1,7}
-    };
-    static const unsigned char font3x5_F[5] = {7,4,7,4,4};
-    static const unsigned char font3x5_P[5] = {7,5,7,4,4};
-    static const unsigned char font3x5_S[5] = {7,4,7,1,7};
-    static const unsigned char font3x5_colon[5] = {0,2,0,2,0};
+	// 3x5 font for digits and letters used (bits left-to-right)
+	static const unsigned char font3x5_digits[10][5] = {
+		{7,5,5,5,7}, {2,6,2,2,7}, {7,1,7,4,7}, {7,1,7,1,7}, {5,5,7,1,1},
+		{7,4,7,1,7}, {7,4,7,5,7}, {7,1,2,2,2}, {7,5,7,5,7}, {7,5,7,1,7}
+	};
+	static const unsigned char font3x5_F[5] = {7,4,7,4,4};
+	static const unsigned char font3x5_P[5] = {7,5,7,4,4};
+	static const unsigned char font3x5_S[5] = {7,4,7,1,7};
+	static const unsigned char font3x5_colon[5] = {0,2,0,2,0};
 
-    char txt[16];
-    int fpsval = FPS;
-    if (fpsval < 0) fpsval = 0;
-    if (fpsval > 999) fpsval = 999;
-    sprintf(txt, "FPS:%d", fpsval);
+	char txt[16];
+	int fpsval = FPS;
+	if (fpsval < 0) fpsval = 0;
+	if (fpsval > 999) fpsval = 999;
+	sprintf(txt, "FPS:%d", fpsval);
 
-    const int char_w = 3;
-    const int char_h = 5;
-    const int spacing = 1;
-    int len = strlen(txt);
-    int total_w = len * (char_w + spacing);
-    int margin = 4;
-    int start_x = scrw - margin - total_w;
-    if (start_x < 0) start_x = 0;
-    int start_y = 2;
+	const int char_w = 3;
+	const int char_h = 5;
+	const int spacing = 1;
+	int len = strlen(txt);
+	int total_w = len * (char_w + spacing);
+	int margin = 4;
+	int start_x = scrw - margin - total_w;
+	if (start_x < 0) start_x = 0;
+	int start_y = 2;
 
-    const u16 color = 0x03E0; // bright green in RGB15
+	const u16 color = 0x03E0; // bright green in RGB15
 
-    for (int ci = 0; ci < len; ++ci) {
-        char c = txt[ci];
-        const unsigned char *glyph = NULL;
-        if (c >= '0' && c <= '9') glyph = font3x5_digits[c - '0'];
-        else if (c == 'F') glyph = font3x5_F;
-        else if (c == 'P') glyph = font3x5_P;
-        else if (c == 'S') glyph = font3x5_S;
-        else if (c == ':') glyph = font3x5_colon;
-        else glyph = NULL;
+	for (int ci = 0; ci < len; ++ci) {
+		char c = txt[ci];
+		const unsigned char *glyph = NULL;
+		if (c >= '0' && c <= '9') glyph = font3x5_digits[c - '0'];
+		else if (c == 'F') glyph = font3x5_F;
+		else if (c == 'P') glyph = font3x5_P;
+		else if (c == 'S') glyph = font3x5_S;
+		else if (c == ':') glyph = font3x5_colon;
+		else glyph = NULL;
 
-        int cx = start_x + ci * (char_w + spacing);
-        int cy = start_y;
-        if (!glyph) continue;
+		int cx = start_x + ci * (char_w + spacing);
+		int cy = start_y;
+		if (!glyph) continue;
 
-        for (int row = 0; row < char_h; ++row) {
-            unsigned char bits = glyph[row];
-            int y = cy + row;
-            if (y < 0 || y >= scrh) continue;
-            u16 *rowptr = sTop + y * scrw;
-            for (int col = 0; col < char_w; ++col) {
-                if (bits & (1 << (char_w - 1 - col))) {
-                    int x = cx + col;
-                    if (x < 0 || x >= scrw) continue;
-                    rowptr[x] = color;
-                }
-            }
-        }
-    }
+		for (int row = 0; row < char_h; ++row) {
+			unsigned char bits = glyph[row];
+			int y = cy + row;
+			if (y < 0 || y >= scrh) continue;
+			u16 *rowptr = sTop + y * scrw;
+			for (int col = 0; col < char_w; ++col) {
+				if (bits & (1 << (char_w - 1 - col))) {
+					int x = cx + col;
+					if (x < 0 || x >= scrw) continue;
+					rowptr[x] = color;
+				}
+			}
+		}
+	}
 }
 
 static void Draw(void) {
+	// PROFILER: GPU_Draw per-frame cached scope
+	if (g_pendingProfilerEnabled) {
+		static Profiler::ScopeStats* _prof_GPU_Draw = NULL;
+		if (!_prof_GPU_Draw) _prof_GPU_Draw = Profiler::GetScopeByName("GPU_Draw");
+		Profiler::ScopedTimer _prof_timer_GPU_Draw(_prof_GPU_Draw);
+	}
+	
 	// convert to 4x4 textels for GX
 	u16 *sTop = (u16*)&GPU_screen;
 	u16 *sBottom = sTop+256*192;
@@ -549,7 +558,7 @@ static void do_screen_layout()
 			scaley = scalex = 1.0;
 			break;
 
-        case SCREEN_VERT_SEPARATED:
+		case SCREEN_VERT_SEPARATED:
 			// normal
 			topX =     int((rmode->viWidth / 2) - (width / 2.0f));
 			topY =     int((rmode->viHeight / 2) - ((height * 2.0f) / 2) - 24);
@@ -685,19 +694,15 @@ static void *draw_thread(void*)
 }
 
 void Execute() {
-	if(vidthread == LWP_THREAD_NULL)
+	if (vidthread == LWP_THREAD_NULL)
 		LWP_CreateThread(&vidthread, draw_thread, NULL, NULL, 0, 67);
 
-	while(!quit_game){
-		 
-		if(SkipFrameTracker) NDS_SkipNextFrame(); 
-	
+	while (!quit_game) {
+		// start per-frame timer (RAII) immediately at loop entry
+		if (SkipFrameTracker) NDS_SkipNextFrame();
 		DSExec();
-
 		SkipFrameTracker++;
-		
-		if(SkipFrameTracker > SkipFrame) SkipFrameTracker = 0;
-		
+		if (SkipFrameTracker > SkipFrame) SkipFrameTracker = 0;
 	}
 
 	abort_thread = true;
@@ -721,35 +726,42 @@ void Execute() {
 // persistent FPS updater — call once per frame (before Draw())
 void ShowFPS()
 {
-    // persistent state across calls
-    static u32 fps_frame_counter = 0;
-    static u32 fps_accum_ms = 0;
-    static u32 fps_last_time_ms = 0;
+	// persistent state across calls
+	static u32 fps_frame_counter = 0;
+	static u32 fps_accum_ms = 0;
+	static u32 fps_last_time_ms = 0;
 
-    // get current time in ms (project already provides gettime() and ticks_to_millisecs)
-    u32 now_ms = ticks_to_millisecs(gettime());
+	// get current time in ms (project already provides gettime() and ticks_to_millisecs)
+	u32 now_ms = ticks_to_millisecs(gettime());
 
-    if (fps_last_time_ms == 0) fps_last_time_ms = now_ms;
+	if (fps_last_time_ms == 0) fps_last_time_ms = now_ms;
 
-    // accumulate
-    fps_frame_counter++;
-    fps_accum_ms += (now_ms - fps_last_time_ms);
-    fps_last_time_ms = now_ms;
+	// accumulate
+	fps_frame_counter++;
+	fps_accum_ms += (now_ms - fps_last_time_ms);
+	fps_last_time_ms = now_ms;
 
-    // update once per second (or when accumulated >= 1000 ms)
-    if (fps_accum_ms >= 1000) {
-        if (fps_accum_ms > 0) {
-            FPS = (int)((u64)fps_frame_counter * 1000ULL / (u64)fps_accum_ms);
-        } else {
-            FPS = 0;
-        }
-        fps_frame_counter = 0;
-        fps_accum_ms = 0;
-    }
+	// update once per second (or when accumulated >= 1000 ms)
+	if (fps_accum_ms >= 1000) {
+		if (fps_accum_ms > 0) {
+			FPS = (int)((u64)fps_frame_counter * 1000ULL / (u64)fps_accum_ms);
+		} else {
+			FPS = 0;
+		}
+		fps_frame_counter = 0;
+		fps_accum_ms = 0;
+	}
 }
 
 void DSExec()
 {
+	// PROFILER: DSExec cached scope
+	if (g_pendingProfilerEnabled) {
+		static Profiler::ScopeStats* _prof_DSExec = NULL;
+		if (!_prof_DSExec) _prof_DSExec = Profiler::GetScopeByName("DSExec");
+		Profiler::ScopedTimer _prof_timer_DSExec(_prof_DSExec);
+	}
+	
 	PAD_ScanPads();
 	WPAD_ScanPads();
 
@@ -1038,10 +1050,10 @@ void ShowCredits() {
 	printf("Press A to return to the menu.");
 	
 	while(true){ 
-	    PAD_ScanPads();
+		PAD_ScanPads();
 		WPAD_ScanPads();
 		if(GetInput(A, A, A))
-		    break;
+			break;
 	}
 
 }

@@ -41,6 +41,8 @@
 #include "movie.h"
 #include "readwrite.h"
 #include "MMU_timing.h"
+#include "utils/profiler.h"
+#include "utils/sd_logger.h"
 
 #ifdef DO_ASSERT_UNALIGNED
 #define ASSERT_UNALIGNED(x) assert(x)
@@ -1882,7 +1884,7 @@ void DmaController::write32(const u32 val)
 	/*if(wordcount==0x9FbFC || wordcount == 0x1FFFFC || wordcount == 0x1EFFFC || wordcount == 0x1FFFFF) {
 		int zzz=9;
 	}*/
-	u8 wasRepeatMode = repeatMode;
+	
 	u8 wasEnable = enable;
 	u32 valhi = val>>16;
 	dar = (EDMADestinationUpdate)((valhi>>5)&3);
@@ -2026,7 +2028,7 @@ void DmaController::doCopy()
 	//determine how we're going to copy
 	bool bogarted = false;
 	u32 sz = (bitWidth==EDMABitWidth_16)?2:4;
-	u32 dstinc = 0,srcinc;
+	u32 dstinc = 0, srcinc;
 	switch(dar) {
 		case EDMADestinationUpdate_Increment       :  dstinc =  sz; break;
 		case EDMADestinationUpdate_Decrement       :  dstinc = (u32)-(s32)sz; break;
@@ -2037,7 +2039,6 @@ void DmaController::doCopy()
 	switch(sar) {
 		case EDMASourceUpdate_Increment : srcinc = sz; break;
 		case EDMASourceUpdate_Decrement : srcinc = (u32)-(s32)sz; break;
-		case EDMASourceUpdate_Fixed		: srcinc = 0; break;
 		case EDMASourceUpdate_Invalid   : //Fall through
 		default: bogarted = true; break;
 	}
