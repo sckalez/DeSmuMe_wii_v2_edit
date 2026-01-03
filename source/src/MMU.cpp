@@ -1,23 +1,23 @@
 /*	Copyright (C) 2006 yopyop
 	Copyright (C) 2007 shash
 	Copyright (C) 2007-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <stdlib.h>
 #include <math.h>
@@ -57,26 +57,26 @@ static u64 isqrt (u64 x) {
    if (x<1) return 0;
   
    /* Load the binary constant 01 00 00 ... 00, where the number
-    * of zero bits to the right of the single one bit
-    * is even, and the one bit is as far left as is consistant
-    * with that condition.)
-    */
+	* of zero bits to the right of the single one bit
+	* is even, and the one bit is as far left as is consistant
+	* with that condition.)
+	*/
    squaredbit  = (u64) ((((u64) ~0LL) >> 1) & 
-                        ~(((u64) ~0LL) >> 2));
+						~(((u64) ~0LL) >> 2));
    /* This portable load replaces the loop that used to be 
-    * here, and was donated by  legalize@xmission.com 
-    */
+	* here, and was donated by  legalize@xmission.com 
+	*/
 
    /* Form bits of the answer. */
    remainder = x;  root = 0;
    while (squaredbit > 0) {
-     if (remainder >= (squaredbit | root)) {
-         remainder -= (squaredbit | root);
-         root >>= 1; root |= squaredbit;
-     } else {
-         root >>= 1;
-     }
-     squaredbit >>= 2; 
+	 if (remainder >= (squaredbit | root)) {
+		 remainder -= (squaredbit | root);
+		 root >>= 1; root |= squaredbit;
+	 } else {
+		 root >>= 1;
+	 }
+	 squaredbit >>= 2; 
    }
 
    return root;
@@ -949,11 +949,11 @@ void MMU_Init()
 
 	MMU.CART_ROM = MMU.UNUSED_RAM;
 
-    for(i = 0x80; i<0xA0; ++i)
-    {
+	for(i = 0x80; i<0xA0; ++i)
+	{
 		MMU_struct::MMU_MEM[0][i] = MMU.CART_ROM;
 		MMU_struct::MMU_MEM[1][i] = MMU.CART_ROM;
-    }
+	}
 
 	MMU.DTCMRegion = 0x027C0000;
 	MMU.ITCMRegion = 0x00000000;
@@ -1389,8 +1389,8 @@ void FASTCALL MMU_writeToGCControl(u32 val)
 		return;
 	}
 	
-    val |= 0x00800000;
-    T1WriteLong(MMU.MMU_MEM[PROCNUM][0x40], 0x1A4, val);
+	val |= 0x00800000;
+	T1WriteLong(MMU.MMU_MEM[PROCNUM][0x40], 0x1A4, val);
 						
 	// Launch DMA if start flag was set to "DS Cart"
 	//printf("triggering card dma\n");
@@ -2039,6 +2039,7 @@ void DmaController::doCopy()
 	switch(sar) {
 		case EDMASourceUpdate_Increment : srcinc = sz; break;
 		case EDMASourceUpdate_Decrement : srcinc = (u32)-(s32)sz; break;
+		case EDMASourceUpdate_Fixed		: srcinc = 0; break;
 		case EDMASourceUpdate_Invalid   : //Fall through
 		default: bogarted = true; break;
 	}
@@ -2639,7 +2640,7 @@ void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val)
 				GPU_setMasterBrightness (SubScreen.gpu, val);
 				break;
 			
-            case REG_POWCNT1 :
+			case REG_POWCNT1 :
 				{
 // TODO: make this later
 #if 0			
@@ -2803,17 +2804,17 @@ void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val)
 				validateIF_arm9();
 				return;
 
-            case REG_IPCSYNC :
+			case REG_IPCSYNC :
 					MMU_IPCSync(ARMCPU_ARM9, val);
 				return;
 
 			case REG_IPCFIFOCNT :
 					IPC_FIFOcnt(ARMCPU_ARM9, val);
 				return;
-            case REG_TM0CNTL :
-            case REG_TM1CNTL :
-            case REG_TM2CNTL :
-            case REG_TM3CNTL :
+			case REG_TM0CNTL :
+			case REG_TM1CNTL :
+			case REG_TM2CNTL :
+			case REG_TM3CNTL :
 				MMU.timerReload[ARMCPU_ARM9][(adr>>2)&3] = val;
 				return;
 			case REG_TM0CNTH :
@@ -3066,13 +3067,13 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 			{
 				GPU_setWININ(MainScreen.gpu, val & 0xFFFF) ; 	 
 				GPU_setWINOUT16(MainScreen.gpu, (val >> 16) & 0xFFFF) ; 	 
-	            break;
+				break;
 			}
 			case REG_DISPB_WININ:
 			{
 				GPU_setWININ(SubScreen.gpu, val & 0xFFFF) ; 	 
 				GPU_setWINOUT16(SubScreen.gpu, (val >> 16) & 0xFFFF) ; 	 
-	            break;
+				break;
 			}
 
 			case REG_DISPA_WIN0H:
@@ -3152,7 +3153,7 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 			case REG_IME : 
 				{
 					NDS_Reschedule();
-			        u32 old_val = MMU.reg_IME[ARMCPU_ARM9];
+					u32 old_val = MMU.reg_IME[ARMCPU_ARM9];
 					u32 new_val = val & 0x01;
 					MMU.reg_IME[ARMCPU_ARM9] = new_val;
 					T1WriteLong(MMU.MMU_MEM[ARMCPU_ARM9][0x40], 0x208, val);
@@ -3190,10 +3191,10 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 				validateIF_arm9();
 				return;
 
-            case REG_TM0CNTL:
-            case REG_TM1CNTL:
-            case REG_TM2CNTL:
-            case REG_TM3CNTL:
+			case REG_TM0CNTL:
+			case REG_TM1CNTL:
+			case REG_TM2CNTL:
+			case REG_TM3CNTL:
 			{
 				int timerIndex = (adr>>2)&0x3;
 				MMU.timerReload[ARMCPU_ARM9][timerIndex] = (u16)val;
@@ -3202,7 +3203,7 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 				return;
 			}
 
-            case REG_DIVDENOM :
+			case REG_DIVDENOM :
 				{
 					T1WriteLong(MMU.MMU_MEM[ARMCPU_ARM9][0x40], 0x298, val);
 					execdiv();
@@ -3235,7 +3236,7 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 					IPC_FIFOsend(ARMCPU_ARM9, val);
 				return;
 
-           
+		   
 			case REG_GCROMCTRL :
 				MMU_writeToGCControl<ARMCPU_ARM9>(val);
 				return;
@@ -3501,7 +3502,7 @@ u32 FASTCALL _MMU_ARM9_read32(u32 adr)
 				LOG("point res\r\n");
 			return 0;
 			*/
-            case REG_GCDATAIN:
+			case REG_GCDATAIN:
 				return MMU_readFromGC<ARMCPU_ARM9>();
 		}
 		return T1ReadLong_guaranteedAligned(MMU.MMU_MEM[ARMCPU_ARM9][0x40], adr & MMU.MMU_MASK[ARMCPU_ARM9][(adr >> 20)]);
@@ -3529,12 +3530,12 @@ void FASTCALL _MMU_ARM7_write08(u32 adr, u8 val)
 	}
 
 	adr &= 0x0FFFFFFF;
-    // This is bad, remove it
+	// This is bad, remove it
 	if ((adr>=0x04000400)&&(adr<0x0400051D)) 
 	{
 		SPU_WriteByte(adr, val);
 		return;
-    }
+	}
 
 	adr &= 0x0FFFFFFF;
 
@@ -3844,17 +3845,17 @@ void FASTCALL _MMU_ARM7_write16(u32 adr, u16 val)
 				MMU.reg_IF[ARMCPU_ARM7] &= (~(((u32)val)<<16));
 				return;
 				
-            case REG_IPCSYNC :
+			case REG_IPCSYNC :
 					MMU_IPCSync(ARMCPU_ARM7, val);
 				return;
 
 			case REG_IPCFIFOCNT :
 					IPC_FIFOcnt(ARMCPU_ARM7, val);
 				return;
-            case REG_TM0CNTL :
-            case REG_TM1CNTL :
-            case REG_TM2CNTL :
-            case REG_TM3CNTL :
+			case REG_TM0CNTL :
+			case REG_TM1CNTL :
+			case REG_TM2CNTL :
+			case REG_TM3CNTL :
 				MMU.timerReload[ARMCPU_ARM7][(adr>>2)&3] = val;
 				return;
 			case REG_TM0CNTH :
@@ -3903,12 +3904,12 @@ void FASTCALL _MMU_ARM7_write32(u32 adr, u32 val)
 
 	adr &= 0x0FFFFFFF;
 
-    // This is bad, remove it
-    if ((adr>=0x04000400)&&(adr<0x0400051D))
-    {
-        SPU_WriteLong(adr, val);
-        return;
-    }
+	// This is bad, remove it
+	if ((adr>=0x04000400)&&(adr<0x0400051D))
+	{
+		SPU_WriteLong(adr, val);
+		return;
+	}
 
 	if((adr>>24)==4)
 	{
@@ -3960,10 +3961,10 @@ void FASTCALL _MMU_ARM7_write32(u32 adr, u32 val)
 				MMU.reg_IF[ARMCPU_ARM7] &= (~val); 
 				return;
 
-            case REG_TM0CNTL:
-            case REG_TM1CNTL:
-            case REG_TM2CNTL:
-            case REG_TM3CNTL:
+			case REG_TM0CNTL:
+			case REG_TM1CNTL:
+			case REG_TM2CNTL:
+			case REG_TM3CNTL:
 			{
 				int timerIndex = (adr>>2)&0x3;
 				MMU.timerReload[ARMCPU_ARM7][timerIndex] = (u16)val;
@@ -4028,7 +4029,7 @@ u8 FASTCALL _MMU_ARM7_read08(u32 adr)
 	adr = MMU_LCDmap<ARMCPU_ARM7>(adr,unmapped);
 	if(unmapped) return 0;
 
-    return MMU.MMU_MEM[ARMCPU_ARM7][(adr>>20)&0xFF][adr&MMU.MMU_MASK[ARMCPU_ARM7][(adr>>20)&0xFF]];
+	return MMU.MMU_MEM[ARMCPU_ARM7][(adr>>20)&0xFF][adr&MMU.MMU_MASK[ARMCPU_ARM7][(adr>>20)&0xFF]];
 }
 //================================================= MMU ARM7 read 16
 u16 FASTCALL _MMU_ARM7_read16(u32 adr)
@@ -4129,10 +4130,10 @@ u32 FASTCALL _MMU_ARM7_read32(u32 adr)
 				return MMU.reg_IF[ARMCPU_ARM7];
 			case REG_IPCFIFORECV :
 				return IPC_FIFOrecv(ARMCPU_ARM7);
-            case REG_TM0CNTL :
-            case REG_TM1CNTL :
-            case REG_TM2CNTL :
-            case REG_TM3CNTL :
+			case REG_TM0CNTL :
+			case REG_TM1CNTL :
+			case REG_TM2CNTL :
+			case REG_TM3CNTL :
 			{
 				u32 val = T1ReadWord(MMU.MMU_MEM[ARMCPU_ARM7][0x40], (adr + 2) & 0xFFF);
 				return MMU.timer[ARMCPU_ARM7][(adr&0xF)>>2] | (val<<16);
@@ -4142,7 +4143,7 @@ u32 FASTCALL _MMU_ARM7_read32(u32 adr)
 				//INFO("arm7 romctrl read\n");
 				break;
 			}
-            case REG_GCDATAIN:
+			case REG_GCDATAIN:
 				return MMU_readFromGC<ARMCPU_ARM7>();
 
 		}
