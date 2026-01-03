@@ -1,26 +1,26 @@
 /*  Copyright (C) 2006 yopyop
-    Copyright (C) 2006-2008 The DeSmuME Team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2006-2008 The DeSmuME Team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 /*
-        CFLASH.C
+		CFLASH.C
 	CompactFlash/FAT emulation routines for DeSmuME
 	/Mic, 2006
 
@@ -148,7 +148,7 @@ static const int lfnPos[13] = {1,3,5,7,9,14,16,18,20,22,24,28,30};
 /* Add a DIR_ENT for the files */
 static void add_file(char *fname, FsEntry * entry, int fileLevel) {
 	int i,j,k,n;
-        u8 chk;
+		u8 chk;
 
 	if (numFiles < MAXFILES-1) {
 		if (strcmp(fname,"..") != 0) {
@@ -234,8 +234,15 @@ static void add_file(char *fname, FsEntry * entry, int fileLevel) {
 			numFiles++;
 		} else if (fileLevel > 0) {
 			fileLink[fileLevel].filesInDir += 1;
-			strncpy((char*)&files[numFiles].name[0],"..      ",NAME_LEN);
-			strncpy((char*)&files[numFiles].ext[0],"   ",EXT_LEN);
+
+			// Fill name with ".." followed by spaces to exactly NAME_LEN bytes
+			files[numFiles].name[0] = '.';
+			files[numFiles].name[1] = '.';
+			for (int _i = 2; _i < NAME_LEN; ++_i) files[numFiles].name[_i] = ' ';
+
+			// Fill extension with spaces (EXT_LEN bytes)
+			for (int _j = 0; _j < EXT_LEN; ++_j) files[numFiles].ext[_j] = ' ';
+			
 			fileLink[numFiles].parent = fileLevel;	
 			files[numFiles].attrib = 0x10;
 			numFiles++;
@@ -274,9 +281,30 @@ static void list_files(const char *filepath) {
 			break;
 
 		if ((entry.flags & FS_IS_DIR) && (strcmp(fname, ".")) && (strcmp(fname, ".."))) {
-			if (strlen(fname)+strlen(filepath)+2 < 256) {
-				sprintf(SubDir, "%s%c%s", filepath, FS_SEPARATOR, fname);
+			/* Only attempt to build SubDir when there's at least some room */
+			size_t filepath_len = strlen(filepath);
+			if (filepath_len + 2 < sizeof(SubDir)) { /* need at least sep + one char + NUL */
+				/* Build SubDir safely into the fixed-size buffer without snprintf */
+				const size_t buf_size = sizeof(SubDir);
+				const size_t fp_len = filepath_len;
+				size_t fname_len = strlen(fname);
+
+				/* maximum number of fname bytes we can copy (leave room for sep + NUL) */
+				size_t max_fname = buf_size - fp_len - 2;
+				size_t copy_fname = (fname_len <= max_fname) ? fname_len : max_fname;
+
+				/* copy filepath */
+				memcpy(SubDir, filepath, fp_len);
+				/* separator */
+				SubDir[fp_len] = FS_SEPARATOR;
+				/* copy (possibly truncated) fname */
+				memcpy(SubDir + fp_len + 1, fname, copy_fname);
+				/* null terminate */
+				SubDir[fp_len + 1 + copy_fname] = '\0';
+
 				list_files(SubDir);
+			} else {
+				/* cannot build a safe path; skip recursion for this entry */
 			}
 		}
 	}
@@ -299,10 +327,8 @@ static bool cflash_build_fat( void) {
 	int i,j,k,l,
 		clust,numClusters,
 		clusterNum2,rootCluster;
-	int fileLevel;
 
 	numFiles  = 0;
-	fileLevel = -1;
 	maxLevel  = -1;
 	
 	files = (DIR_ENT *) malloc(MAXFILES*sizeof(DIR_ENT));
@@ -311,7 +337,7 @@ static bool cflash_build_fat( void) {
 	fileLink = (FILE_INFO *) malloc(MAXFILES*sizeof(FILE_INFO));
 	if (fileLink == NULL) {
 		free(files);
-                return false;
+				return false;
 	}
 
 	for (i=0; i<MAXFILES; i++) {
@@ -481,7 +507,7 @@ static bool cflash_build_fat( void) {
 			FAT16[i] = i+1;
 	}
 
-        return true;
+		return true;
 }
 
 
@@ -489,42 +515,42 @@ bool cflash_init( const char *disk_image_filename) {
   bool init_good = false;
 
   if ( disk_image_filename != NULL) {
-    CFLASHLOG("Using CFlash disk image file %s\n", disk_image_filename);
-    use_disk_image_file = 1;
-    disk_image = OPEN_FN( disk_image_filename, OPEN_MODE);
+	CFLASHLOG("Using CFlash disk image file %s\n", disk_image_filename);
+	use_disk_image_file = 1;
+	disk_image = OPEN_FN( disk_image_filename, OPEN_MODE);
 
-    if ( disk_image != -1) {
-      file_size = LSEEK_FN( disk_image, 0, SEEK_END);
-        if (0 && file_size == -1) {
+	if ( disk_image != -1) {
+	  file_size = LSEEK_FN( disk_image, 0, SEEK_END);
+		if (0 && file_size == -1) {
 			CFLASHLOG( "Error when seeking to end of disk image" );
-        } else {
+		} else {
 			LSEEK_FN( disk_image, 0, SEEK_SET);
 
 			CFLASHLOG( "Disk image size = %ld (%ld sectors)\n",
-                 file_size, file_size / 512);
+				 file_size, file_size / 512);
 			init_good = true;
 		}
 	}
-    else {
-      CFLASHLOG("Failed to open file %s: \"%s\"\n",
-                disk_image_filename,
-                strerror( errno));
-    }
+	else {
+	  CFLASHLOG("Failed to open file %s: \"%s\"\n",
+				disk_image_filename,
+				strerror( errno));
+	}
   }
   else {
-    cflashDeviceEnabled = false;
-    currLBA = 0;
-    	
-    if (activeDirEnt != -1)
-      fclose(hFile);
-    activeDirEnt = -1;
-    fileStartLBA = fileEndLBA = 0xFFFFFFFF;
-    if (!cflash_build_fat())
-      return false;
-    cf_reg_sts = 0x58;	// READY
+	cflashDeviceEnabled = false;
+	currLBA = 0;
+		
+	if (activeDirEnt != -1)
+	  fclose(hFile);
+	activeDirEnt = -1;
+	fileStartLBA = fileEndLBA = 0xFFFFFFFF;
+	if (!cflash_build_fat())
+	  return false;
+	cf_reg_sts = 0x58;	// READY
 
-    cflashDeviceEnabled = true;
-    init_good = true;
+	cflashDeviceEnabled = true;
+	init_good = true;
   }
 
   // READY
@@ -532,7 +558,7 @@ bool cflash_init( const char *disk_image_filename) {
 
   currLBA = 0;
   cf_reg_lba1 = cf_reg_lba2 =
-    cf_reg_lba3 = cf_reg_lba4 = 0;
+	cf_reg_lba3 = cf_reg_lba4 = 0;
 
   return init_good;
 }
@@ -616,10 +642,10 @@ static u16 fread_buffered(int dirent,u32 cluster,u32 offset) {
 	fatstring_to_asciiz(dirent,fname,NULL);
 	strncat(fpath,fname,ARRAY_SIZE(fpath)-strlen(fpath));
 
-        hFile = fopen(fpath, "rb");
-        if (!hFile) return 0;
-        bufferStart = offset;
-        fseek(hFile, offset, SEEK_SET);
+		hFile = fopen(fpath, "rb");
+		if (!hFile) return 0;
+		bufferStart = offset;
+		fseek(hFile, offset, SEEK_SET);
 	elems_read += fread(&freadBuffer, 1, 512, hFile);
 
 	bufferStart = offset;
@@ -642,116 +668,116 @@ cflash_read(unsigned int address) {
 
   switch ( address) {
   case CF_REG_STS:
-    ret_value = cf_reg_sts;
-    break;
+	ret_value = cf_reg_sts;
+	break;
 
   case CF_REG_DATA:
-    if (cf_reg_cmd == CF_CMD_READ) {
-      if ( use_disk_image_file) {
-        if ( disk_image != -1) {
-          u8 data[2];
+	if (cf_reg_cmd == CF_CMD_READ) {
+	  if ( use_disk_image_file) {
+		if ( disk_image != -1) {
+		  u8 data[2];
 #if 0
-          if ( currLBA < buffered_start_index ||
-               currLBA >= (buffered_start_index + BUFFERED_BLOCK_SIZE)) {
-            size_t read_bytes = 0;
-            LSEEK_FN( disk_image, currLBA, SEEK_SET);
+		  if ( currLBA < buffered_start_index ||
+			   currLBA >= (buffered_start_index + BUFFERED_BLOCK_SIZE)) {
+			size_t read_bytes = 0;
+			LSEEK_FN( disk_image, currLBA, SEEK_SET);
 
-            while ( read_bytes < BUFFERED_BLOCK_SIZE) {
-              size_t cur_read =
-                READ_FN( disk_image, &block_buffer[read_bytes],
-                         BUFFERED_BLOCK_SIZE - read_bytes);
+			while ( read_bytes < BUFFERED_BLOCK_SIZE) {
+			  size_t cur_read =
+				READ_FN( disk_image, &block_buffer[read_bytes],
+						 BUFFERED_BLOCK_SIZE - read_bytes);
 
-              if ( cur_read == -1) {
+			  if ( cur_read == -1) {
 				CFLASHLOG( "Error during read: %s\n", strerror(errno) );
-                break;
-              }
-              read_bytes += cur_read;
-            }
+				break;
+			  }
+			  read_bytes += cur_read;
+			}
 
-            CFLASHLOG( "Read %d bytes\n", read_bytes);
+			CFLASHLOG( "Read %d bytes\n", read_bytes);
 
-            buffered_start_index = currLBA;
-          }
-          data[0] = block_buffer[currLBA - buffered_start_index];
-          data[1] = block_buffer[currLBA + 1 - buffered_start_index];
+			buffered_start_index = currLBA;
+		  }
+		  data[0] = block_buffer[currLBA - buffered_start_index];
+		  data[1] = block_buffer[currLBA + 1 - buffered_start_index];
 #else
-          LSEEK_FN( disk_image, currLBA, SEEK_SET);
-          elems_read += READ_FN( disk_image, data, 2);
+		  LSEEK_FN( disk_image, currLBA, SEEK_SET);
+		  elems_read += READ_FN( disk_image, data, 2);
 #endif
-          ret_value = data[1] << 8 |
-            data[0];
-        }
-        currLBA += 2;
-      }
-      else {
+		  ret_value = data[1] << 8 |
+			data[0];
+		}
+		currLBA += 2;
+	  }
+	  else {
 	unsigned char *p;
 	int i;
 	u32 cluster,cluster2,cluster3,fileLBA;
-        cluster = (currLBA / (512 * SECPERCLUS));
-        cluster2 = (((currLBA/512) - filesysData) / SECPERCLUS) + 2;
+		cluster = (currLBA / (512 * SECPERCLUS));
+		cluster2 = (((currLBA/512) - filesysData) / SECPERCLUS) + 2;
 
-        // Reading from the MBR 
-        if (currLBA < 512) {
-          p = (unsigned char*)&MBR;
-          ret_value = T1ReadWord(p, currLBA);
+		// Reading from the MBR 
+		if (currLBA < 512) {
+		  p = (unsigned char*)&MBR;
+		  ret_value = T1ReadWord(p, currLBA);
 
-          // Reading the FAT 
-        } else if (((u32)currLBA >= filesysFAT*512) && ((u32)currLBA < filesysRootDir*512)) {
-          p = (unsigned char*)&FAT16[0];
-          ret_value = T1ReadWord(p, currLBA - filesysFAT * 512);
+		  // Reading the FAT 
+		} else if (((u32)currLBA >= filesysFAT*512) && ((u32)currLBA < filesysRootDir*512)) {
+		  p = (unsigned char*)&FAT16[0];
+		  ret_value = T1ReadWord(p, currLBA - filesysFAT * 512);
 
-          // Reading directory entries 
-        } else if (((u32)currLBA >= filesysRootDir*512) &&
-                   (cluster <= (u32)lastDirEntCluster)) {
-          cluster3 = ((currLBA - (SECRESV * 512)) / (512 * SECPERCLUS));
-          i = (currLBA-(((cluster3-(filesysRootDir/SECPERCLUS))*SECPERCLUS+filesysRootDir)*512)); //(currLBA - cluster*BYTESPERCLUS);
-          if (i < (dirEntriesInCluster[cluster3]*32)) {
+		  // Reading directory entries 
+		} else if (((u32)currLBA >= filesysRootDir*512) &&
+				   (cluster <= (u32)lastDirEntCluster)) {
+		  cluster3 = ((currLBA - (SECRESV * 512)) / (512 * SECPERCLUS));
+		  i = (currLBA-(((cluster3-(filesysRootDir/SECPERCLUS))*SECPERCLUS+filesysRootDir)*512)); //(currLBA - cluster*BYTESPERCLUS);
+		  if (i < (dirEntriesInCluster[cluster3]*32)) {
 
-            p = (unsigned char*)dirEntryPtr[cluster3];
-            ret_value = T1ReadWord(p, i);
-          } else {
-            i /= 32;
-            i -= dirEntriesInCluster[cluster3];
-            if ((i>=0)&&(i<numExtraEntries[cluster3])) {
-              p = (unsigned char*)extraDirEntries[cluster3];
-              ret_value = T1ReadWord(p, i * 32 + (currLBA & 0x1F));
-            } else if ((currLBA&0x1F)==0) {
-              ret_value = FILE_FREE;
-            } else {
-              ret_value = 0;
-            }
-          }
-          // Reading file data 
-        } else if ((cluster2 > (u32)lastDirEntCluster) && (cluster2 <= (u32)lastFileDataCluster)) { //else if ((cluster>lastDirEntCluster)&&(cluster<=lastFileDataCluster)) {
-          fileLBA = currLBA - (filesysData-32)*512;	// 32 = # sectors used for the root entries
+			p = (unsigned char*)dirEntryPtr[cluster3];
+			ret_value = T1ReadWord(p, i);
+		  } else {
+			i /= 32;
+			i -= dirEntriesInCluster[cluster3];
+			if ((i>=0)&&(i<numExtraEntries[cluster3])) {
+			  p = (unsigned char*)extraDirEntries[cluster3];
+			  ret_value = T1ReadWord(p, i * 32 + (currLBA & 0x1F));
+			} else if ((currLBA&0x1F)==0) {
+			  ret_value = FILE_FREE;
+			} else {
+			  ret_value = 0;
+			}
+		  }
+		  // Reading file data 
+		} else if ((cluster2 > (u32)lastDirEntCluster) && (cluster2 <= (u32)lastFileDataCluster)) { //else if ((cluster>lastDirEntCluster)&&(cluster<=lastFileDataCluster)) {
+		  fileLBA = currLBA - (filesysData-32)*512;	// 32 = # sectors used for the root entries
 
-          // Check if the read is from the currently opened file 
-          if ((fileLBA >= fileStartLBA) && (fileLBA < fileEndLBA)) {
-            cluster = (fileLBA / (512 * SECPERCLUS));
-            ret_value = fread_buffered(activeDirEnt,cluster-dirEntries[activeDirEnt].startCluster,(fileLBA-fileStartLBA)&(BYTESPERCLUS-1)); 
-          } else {
-            for (i=0; i<numFiles; i++) {
-              if ((fileLBA>=(u32)(dirEntries[i].startCluster*512*SECPERCLUS)) &&
-                  (fileLBA <(dirEntries[i].startCluster*512*SECPERCLUS)+dirEntries[i].fileSize) &&
-                  ((dirEntries[i].attrib & (ATTRIB_DIR|ATTRIB_LFN))==0)) {
-                cluster = (fileLBA / (512 * SECPERCLUS));
-                ret_value = fread_buffered(i,cluster-dirEntries[i].startCluster,fileLBA&(BYTESPERCLUS-1));
-                break;
-              }
-            }
-          }
-        } 
-        currLBA += 2;
-      }
-    }
-    break;
+		  // Check if the read is from the currently opened file 
+		  if ((fileLBA >= fileStartLBA) && (fileLBA < fileEndLBA)) {
+			cluster = (fileLBA / (512 * SECPERCLUS));
+			ret_value = fread_buffered(activeDirEnt,cluster-dirEntries[activeDirEnt].startCluster,(fileLBA-fileStartLBA)&(BYTESPERCLUS-1)); 
+		  } else {
+			for (i=0; i<numFiles; i++) {
+			  if ((fileLBA>=(u32)(dirEntries[i].startCluster*512*SECPERCLUS)) &&
+				  (fileLBA <(dirEntries[i].startCluster*512*SECPERCLUS)+dirEntries[i].fileSize) &&
+				  ((dirEntries[i].attrib & (ATTRIB_DIR|ATTRIB_LFN))==0)) {
+				cluster = (fileLBA / (512 * SECPERCLUS));
+				ret_value = fread_buffered(i,cluster-dirEntries[i].startCluster,fileLBA&(BYTESPERCLUS-1));
+				break;
+			  }
+			}
+		  }
+		} 
+		currLBA += 2;
+	  }
+	}
+	break;
 
   case CF_REG_CMD:
-    break;
+	break;
 
   case CF_REG_LBA1:
-    ret_value = cf_reg_lba1;
-    break;
+	ret_value = cf_reg_lba1;
+	break;
   }
 
   return ret_value;
@@ -764,112 +790,112 @@ cflash_write(unsigned int address,unsigned int data) {
 
   switch ( address) {
   case CF_REG_STS:
-    cf_reg_sts = data&0xFFFF;
-    break;
+	cf_reg_sts = data&0xFFFF;
+	break;
 
   case CF_REG_DATA:
-    if ( use_disk_image_file) {
-      if (cf_reg_cmd == CF_CMD_WRITE) {
-        sector_data[sector_write_index] = (data >> 0) & 0xff;
-        sector_data[sector_write_index + 1] = (data >> 8) & 0xff;
+	if ( use_disk_image_file) {
+	  if (cf_reg_cmd == CF_CMD_WRITE) {
+		sector_data[sector_write_index] = (data >> 0) & 0xff;
+		sector_data[sector_write_index + 1] = (data >> 8) & 0xff;
 
-        sector_write_index += 2;
+		sector_write_index += 2;
 
-        if ( sector_write_index == 512) {
-          CFLASHLOG( "Write sector to %ld\n", currLBA);
+		if ( sector_write_index == 512) {
+		  CFLASHLOG( "Write sector to %ld\n", currLBA);
 
-          if ( currLBA + 512 < file_size) {
-            size_t written = 0;
+		  if ( currLBA + 512 < file_size) {
+			size_t written = 0;
 
-            if ( disk_image != -1) {
-              LSEEK_FN( disk_image, currLBA, SEEK_SET);
-              
-              while( written < 512) {
-                size_t cur_write =
-                  WRITE_FN( disk_image, &sector_data[written], 512 - written);
-                written += cur_write;
+			if ( disk_image != -1) {
+			  LSEEK_FN( disk_image, currLBA, SEEK_SET);
+			  
+			  while( written < 512) {
+				size_t cur_write =
+				  WRITE_FN( disk_image, &sector_data[written], 512 - written);
+				written += cur_write;
 
-                if ( cur_write == (size_t)-1) {
-                  break;
-                }
-              }
-            }
+				if ( cur_write == (size_t)-1) {
+				  break;
+				}
+			  }
+			}
 
-            CFLASHLOG("Wrote %u bytes\n", written);
-          }
-          currLBA += 512;
-          sector_write_index = 0;
-        }
-      }
-    }
-    break;
+			CFLASHLOG("Wrote %u bytes\n", written);
+		  }
+		  currLBA += 512;
+		  sector_write_index = 0;
+		}
+	  }
+	}
+	break;
 
   case CF_REG_CMD:
-    cf_reg_cmd = data&0xFF;
-    cf_reg_sts = 0x58;	// READY
-    break;
+	cf_reg_cmd = data&0xFF;
+	cf_reg_sts = 0x58;	// READY
+	break;
 
   case CF_REG_LBA1:
-    cf_reg_lba1 = data&0xFF;
-    currLBA = (currLBA&0xFFFFFF00)| cf_reg_lba1;
-    break;
+	cf_reg_lba1 = data&0xFF;
+	currLBA = (currLBA&0xFFFFFF00)| cf_reg_lba1;
+	break;
 
   case CF_REG_LBA2:
-    cf_reg_lba2 = data&0xFF;
-    currLBA = (currLBA&0xFFFF00FF)|(cf_reg_lba2<<8);
-    break;
+	cf_reg_lba2 = data&0xFF;
+	currLBA = (currLBA&0xFFFF00FF)|(cf_reg_lba2<<8);
+	break;
 
   case CF_REG_LBA3:
-    cf_reg_lba3 = data&0xFF;
-    currLBA = (currLBA&0xFF00FFFF)|(cf_reg_lba3<<16);
-    break;
+	cf_reg_lba3 = data&0xFF;
+	currLBA = (currLBA&0xFF00FFFF)|(cf_reg_lba3<<16);
+	break;
 
   case CF_REG_LBA4:
-    cf_reg_lba4 = data&0xFF;
+	cf_reg_lba4 = data&0xFF;
 
-    if ( (cf_reg_lba4 & 0xf0) == CF_CMD_LBA) {
-      currLBA = (currLBA&0x00FFFFFF)|((cf_reg_lba4&0x0F)<<24);
-      currLBA *= 512;
-      sector_write_index = 0;
-    }
-    break;
+	if ( (cf_reg_lba4 & 0xf0) == CF_CMD_LBA) {
+	  currLBA = (currLBA&0x00FFFFFF)|((cf_reg_lba4&0x0F)<<24);
+	  currLBA *= 512;
+	  sector_write_index = 0;
+	}
+	break;
   }  
 }
 
 void
 cflash_close( void) {
   if ( use_disk_image_file) {
-    if ( disk_image != -1) {
-      CLOSE_FN( disk_image);
-      disk_image = -1;
-    }
+	if ( disk_image != -1) {
+	  CLOSE_FN( disk_image);
+	  disk_image = -1;
+	}
   }
   else {
-    
+	
 
-    if (cflashDeviceEnabled) {
-      cflashDeviceEnabled = false;
-      int i = 0;
-      for (; i<MAXFILES; i++) {
-        if (extraDirEntries[i] != NULL)
-          free(extraDirEntries[i]);
-      }
+	if (cflashDeviceEnabled) {
+	  cflashDeviceEnabled = false;
+	  int i = 0;
+	  for (; i<MAXFILES; i++) {
+		if (extraDirEntries[i] != NULL)
+		  free(extraDirEntries[i]);
+	  }
 
-      if (dirEntries != NULL)
-        free(dirEntries);
+	  if (dirEntries != NULL)
+		free(dirEntries);
 
-      if (dirEntryLink != NULL)
-        free(dirEntryLink);
+	  if (dirEntryLink != NULL)
+		free(dirEntryLink);
 
-      if (dirEntriesInCluster != NULL)
-        free(dirEntriesInCluster);
+	  if (dirEntriesInCluster != NULL)
+		free(dirEntriesInCluster);
 
-      if (dirEntryPtr != NULL)
-        free(dirEntryPtr);
+	  if (dirEntryPtr != NULL)
+		free(dirEntryPtr);
 
-      if (activeDirEnt != -1)
-        fclose(hFile);
-    }
+	  if (activeDirEnt != -1)
+		fclose(hFile);
+	}
   }
 }
 

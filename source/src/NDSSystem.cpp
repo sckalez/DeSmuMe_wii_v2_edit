@@ -1,22 +1,22 @@
 /*	Copyright (C) 2006 yopyop
 	Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <string.h>
@@ -395,7 +395,7 @@ int NDS_LoadROM(const char *filename, const char *logicalFilename)
 	if (filename == NULL)
 		return -1;
 	
-    path.init(logicalFilename);
+	path.init(logicalFilename);
 
 	if ( path.isdsgba(path.path)) {
 		type = ROM_DSGBA;
@@ -2157,24 +2157,24 @@ void NDS_Reset()
 }
 
 static std::string MakeInputDisplayString(u16 pad, const std::string* Buttons, int count) {
-    std::string s;
-    for (int x = 0; x < count; x++) {
-        if (pad & (1 << x))
-            s.append(Buttons[x].size(), ' '); 
-        else
-            s += Buttons[x];
-    }
-    return s;
+	std::string s;
+	for (int x = 0; x < count; x++) {
+		if (pad & (1 << x))
+			s.append(Buttons[x].size(), ' '); 
+		else
+			s += Buttons[x];
+	}
+	return s;
 }
 
 static std::string MakeInputDisplayString(u16 pad, u16 padExt) {
-    const std::string Buttons[] = {"A", "B", "Sl", "St", "R", "L", "U", "D", "Rs", "Ls"};
-    const std::string Ext[] = {"X", "Y"};
+	const std::string Buttons[] = {"A", "B", "Sl", "St", "R", "L", "U", "D", "Rs", "Ls"};
+	const std::string Ext[] = {"X", "Y"};
 
-    std::string s = MakeInputDisplayString(pad, Ext, ARRAY_SIZE(Ext));
-    s += MakeInputDisplayString(padExt, Buttons, ARRAY_SIZE(Buttons));
+	std::string s = MakeInputDisplayString(pad, Ext, ARRAY_SIZE(Ext));
+	s += MakeInputDisplayString(padExt, Buttons, ARRAY_SIZE(Buttons));
 
-    return s;
+	return s;
 }
 
 
@@ -2461,7 +2461,7 @@ static void NDS_applyFinalInput()
 	//fRLDUTSBAYXWEg
 	//we don't really need nds.pad anymore, but removing it would be a pain
 
- 	nds.pad =
+	nds.pad =
 		((input.buttons.R ? 1 : 0) << 12)|
 		((input.buttons.L ? 1 : 0) << 11)|
 		((input.buttons.D ? 1 : 0) << 10)|

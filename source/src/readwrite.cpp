@@ -1,22 +1,22 @@
 /*
-    Copyright (C) 2006-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2006-2009 DeSmuME team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include "readwrite.h"
@@ -77,11 +77,10 @@ int write64le(u64 b, EMUFILE* os)
 	return 8;
 }
 
-
 int read32le(u32 *Bufo, EMUFILE *fp)
 {
-	u32 buf;
-	if(fp->_fread(&buf,4)<4)
+	u32 buf = 0;
+	if (fp->_fread(&buf, 4) < 4)
 		return 0;
 #ifdef LOCAL_LE
 	*(u32*)Bufo=buf;
@@ -93,8 +92,8 @@ int read32le(u32 *Bufo, EMUFILE *fp)
 
 int read16le(u16 *Bufo, EMUFILE *is)
 {
-	u16 buf;
-	if(is->_fread((char*)&buf,2) != 2)
+	u16 buf = 0;
+	if (is->_fread((char*)&buf, 2) != 2)
 		return 0;
 #ifdef LOCAL_LE
 	*Bufo=buf;
@@ -106,8 +105,8 @@ int read16le(u16 *Bufo, EMUFILE *is)
 
 int read64le(u64 *Bufo, EMUFILE *is)
 {
-	u64 buf;
-	if(is->_fread((char*)&buf,8) != 8)
+	u64 buf = 0;
+	if (is->_fread((char*)&buf, 8) != 8)
 		return 0;
 #ifdef LOCAL_LE
 	*Bufo=buf;
@@ -128,16 +127,19 @@ int readbool(bool *b, EMUFILE* is)
 int readbuffer(std::vector<u8> &vec, EMUFILE* is)
 {
 	u32 size;
-	if(read32le(&size,is) != 1) return 0;
+	if (read32le(&size, is) != 1) return 0;
 	vec.resize(size);
-	if(size>0) is->fread((char*)&vec[0],size);
+	if (size > 0) {
+		unsigned read = is->fread(reinterpret_cast<char*>(vec.data()), size);
+		if (read != size) return 0;
+	}
 	return 1;
 }
 
 int writebuffer(std::vector<u8>& vec, EMUFILE* os)
 {
-	u32 size = vec.size();
-	write32le(size,os);
-	if(size>0) os->fwrite((char*)&vec[0],size);
+	u32 size = static_cast<u32>(vec.size());
+	write32le(size, os);
+	if (size > 0) os->fwrite(reinterpret_cast<const char*>(vec.data()), size);
 	return 1;
 }

@@ -1,22 +1,22 @@
 /*  Copyright (C) 2006 yopyop
-    Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2008-2009 DeSmuME team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 //This file implements the geometry engine hardware component.
@@ -152,57 +152,62 @@ decode:
 			//printf("[%05d] gxf: decoding %08X\n",currFrameCounter,val);
 			if (val == 0) return;	// nop
 
-			const u8 commands[] = { val&0xFF, (val>>8)&0xFF, (val>>16)&0xFF, (val>>24)&0xFF };
+			const u8 commands[] = {
+				static_cast<u8>(val & 0xFF),
+				static_cast<u8>((val >> 8) & 0xFF),
+				static_cast<u8>((val >> 16) & 0xFF),
+				static_cast<u8>((val >> 24) & 0xFF)
+			};
 			const u8 commandTypes[] = { gfx3d_commandTypes[commands[0]], gfx3d_commandTypes[commands[1]],gfx3d_commandTypes[commands[2]], gfx3d_commandTypes[commands[3]] };
 
 			for(int i=0;i<4;i++) {
-			    u8 cmd = commands[i];
-			    u8 type = commandTypes[i];
-			    if(type == INVALID_COMMAND) {
-			            commandsPending[i].command = INVALID_COMMAND;
-			    } else {
-			            if(type == UNDEFINED_COMMAND)
-			            {
-			                    commandsPending[i].command = GFX3D_NOP_NOARG_HACK;  //enqueue a single undefined command we know how to handle
-			            }
-			            else commandsPending[i].command = cmd;
-			    }
-			    if(type == UNDEFINED_COMMAND
-			            //|| type == 0x00 //DON'T DO THIS: galactik football will break if you do (ingame character portraits etc.) as well as nintendogs dalmatian
-			            ) {
-			            //these are valid commands with no parameters. they might need special handling
-			            //as long as there is a subsequent defined command with parameters, we're safe
-			            bool safe = false;
-			            for(int j=i+1;j<4;j++) {
-			                    if(commandTypes[j] != INVALID_COMMAND) {
-			                            safe = true;
-			                            break;
-			                    }
-			            }
-			            if(safe) {
-			                    commandsPending[i].countdown = 0;
-			            } else {
-			                    //we need to receive a dummy parameter in this case
-			                    commandsPending[i].countdown = 1;
-			            }
-			    } else if(type != INVALID_COMMAND) {
-			            commandsPending[i].countdown = type;
-			    } else commandsPending[i].countdown = 0;
+				u8 cmd = commands[i];
+				u8 type = commandTypes[i];
+				if(type == INVALID_COMMAND) {
+						commandsPending[i].command = INVALID_COMMAND;
+				} else {
+						if(type == UNDEFINED_COMMAND)
+						{
+								commandsPending[i].command = GFX3D_NOP_NOARG_HACK;  //enqueue a single undefined command we know how to handle
+						}
+						else commandsPending[i].command = cmd;
+				}
+				if(type == UNDEFINED_COMMAND
+						//|| type == 0x00 //DON'T DO THIS: galactik football will break if you do (ingame character portraits etc.) as well as nintendogs dalmatian
+						) {
+						//these are valid commands with no parameters. they might need special handling
+						//as long as there is a subsequent defined command with parameters, we're safe
+						bool safe = false;
+						for(int j=i+1;j<4;j++) {
+								if(commandTypes[j] != INVALID_COMMAND) {
+										safe = true;
+										break;
+								}
+						}
+						if(safe) {
+								commandsPending[i].countdown = 0;
+						} else {
+								//we need to receive a dummy parameter in this case
+								commandsPending[i].countdown = 1;
+						}
+				} else if(type != INVALID_COMMAND) {
+						commandsPending[i].countdown = type;
+				} else commandsPending[i].countdown = 0;
 			}
 
-            commandCursor = 0;
-            countdown = front().countdown;
-            if(countdown==0)
-                    goto trigger;
-        }
+			commandCursor = 0;
+			countdown = front().countdown;
+			if(countdown==0)
+					goto trigger;
+		}
 }
 
 struct CommandItem {
-        u8 command, countdown;
+		u8 command, countdown;
 } commandsPending[4];
 
-        u32 commandCursor;
-        u8 countdown;
+		u32 commandCursor;
+		u8 countdown;
 
 private:
 	void dequeue() { commandCursor++; }
@@ -318,10 +323,10 @@ CACHE_ALIGN u8 gfx3d_convertedScreen[256*192*4];
 
 // Matrix stack handling
 CACHE_ALIGN MatrixStack mtxStack[4] = {
-        MatrixStack(1), // Projection stack
-        MatrixStack(31), // Coordinate stack	(Modelview)
-        MatrixStack(31), // Directional stack	(For lighting --normals)
-        MatrixStack(1), // Texture stack
+		MatrixStack(1), // Projection stack
+		MatrixStack(31), // Coordinate stack	(Modelview)
+		MatrixStack(31), // Directional stack	(For lighting --normals)
+		MatrixStack(1), // Texture stack
 };
 
 int _hack_getMatrixStackLevel(int which) { return mtxStack[which].position; }
@@ -517,8 +522,8 @@ void gfx3d_reset(){
 	control = 0;
 	drawPending = FALSE;
 	flushPending = FALSE;
-	memset(polylists, 0, sizeof(polylists));
-	memset(vertlists, 0, sizeof(vertlists));
+	memset(polylists, 0, sizeof(POLYLIST) * 2);
+	memset(vertlists, 0, sizeof(VERTLIST) * 2);
 	listTwiddle = 1;
 	twiddleLists();
 	gfx3d.polylist = polylist;
@@ -818,7 +823,7 @@ static void gfx3d_glPushMatrix(u32 pad){
 	if(mymode==2)
 		MatrixStackPushMatrix (&mtxStack[1], mtxCurrent[1]);
 
-        //gxstat |= ((mtxStack[0].position << 13) | (mtxStack[1].position << 8));
+		//gxstat |= ((mtxStack[0].position << 13) | (mtxStack[1].position << 8));
 }
 
 static void gfx3d_glPopMatrix(u32 _i){
@@ -837,7 +842,7 @@ static void gfx3d_glPopMatrix(u32 _i){
 	if (mymode == 2)
 			MatrixCopy(mtxCurrent[1], MatrixStackPopMatrix (&mtxStack[1], i));
 
-        //gxstat |= ((mtxStack[0].position << 13) | (mtxStack[1].position << 8));
+		//gxstat |= ((mtxStack[0].position << 13) | (mtxStack[1].position << 8));
 }
 
 static void gfx3d_glStoreMatrix(u32 v){
@@ -1092,36 +1097,41 @@ static void gfx3d_glNormal(u32 v){
 	//apply lighting model
 	{
 		u8 diffuse[3] = {
-			(dsDiffuse)&0x1F,
-			(dsDiffuse>>5)&0x1F,
-			(dsDiffuse>>10)&0x1F };
+			static_cast<u8>(dsDiffuse & 0x1F),
+			static_cast<u8>((dsDiffuse >> 5) & 0x1F),
+			static_cast<u8>((dsDiffuse >> 10) & 0x1F)
+		};
 
 		u8 ambient[3] = {
-			(dsAmbient)&0x1F,
-			(dsAmbient>>5)&0x1F,
-			(dsAmbient>>10)&0x1F };
+			static_cast<u8>(dsAmbient & 0x1F),
+			static_cast<u8>((dsAmbient >> 5) & 0x1F),
+			static_cast<u8>((dsAmbient >> 10) & 0x1F)
+		};
 
 		u8 emission[3] = {
-			(dsEmission)&0x1F,
-			(dsEmission>>5)&0x1F,
-			(dsEmission>>10)&0x1F };
+			static_cast<u8>(dsEmission & 0x1F),
+			static_cast<u8>((dsEmission >> 5) & 0x1F),
+			static_cast<u8>((dsEmission >> 10) & 0x1F)
+		};
 
 		u8 specular[3] = {
-			(dsSpecular)&0x1F,
-			(dsSpecular>>5)&0x1F,
-			(dsSpecular>>10)&0x1F };
+			static_cast<u8>(dsSpecular & 0x1F),
+			static_cast<u8>((dsSpecular >> 5) & 0x1F),
+			static_cast<u8>((dsSpecular >> 10) & 0x1F)
+		};
 
 		int vertexColor[3] = { emission[0], emission[1], emission[2] };
 
-		int shininessTable_size = (int)ARRAY_SIZE(shininessTable);
+		int shininessTable_size = static_cast<int>(ARRAY_SIZE(shininessTable));
 
-		for(int i=0; i<4; i++){
-			if(!((lightMask>>i)&1)) continue;
+		for (int i = 0; i < 4; ++i) {
+			if (!((lightMask >> i) & 1)) continue;
 
 			u8 _lightColor[3] = {
-				(lightColor[i])&0x1F,
-				(lightColor[i]>>5)&0x1F,
-				(lightColor[i]>>10)&0x1F };
+				static_cast<u8>(lightColor[i] & 0x1F),
+				static_cast<u8>((lightColor[i] >> 5) & 0x1F),
+				static_cast<u8>((lightColor[i] >> 10) & 0x1F)
+			};
 
 			/* This formula is the one used by the DS */
 			/* Reference : http://nocash.emubase.de/gbatek.htm#ds3dpolygonlightparameters */
@@ -1257,9 +1267,9 @@ static void gfx3d_glPolygonAttrib (u32 val){
 
 static void gfx3d_glTexImage(u32 val)
 {
-        textureFormat = val;
-        gfx3d_glTexImage_cache();
-        GFX_DELAY(1);
+		textureFormat = val;
+		gfx3d_glTexImage_cache();
+		GFX_DELAY(1);
 }
 
 static void gfx3d_glTexPalette(u32 val){
@@ -1289,16 +1299,16 @@ static void gfx3d_glMaterial0(u32 val){
 }
 
 static void gfx3d_glMaterial1(u32 val){
-        dsSpecular = val&0xFFFF;
-        dsEmission = val>>16;
-        GFX_DELAY(4);
+		dsSpecular = val&0xFFFF;
+		dsEmission = val>>16;
+		GFX_DELAY(4);
 }
 
 /*
-        0-9   Directional Vector's X component (1bit sign + 9bit fractional part)
-        10-19 Directional Vector's Y component (1bit sign + 9bit fractional part)
-        20-29 Directional Vector's Z component (1bit sign + 9bit fractional part)
-        30-31 Light Number                     (0..3)
+		0-9   Directional Vector's X component (1bit sign + 9bit fractional part)
+		10-19 Directional Vector's Y component (1bit sign + 9bit fractional part)
+		20-29 Directional Vector's Z component (1bit sign + 9bit fractional part)
+		30-31 Light Number                     (0..3)
 */
 static void gfx3d_glLightDirection (u32 v){
 	int index = v>>30;
@@ -1404,8 +1414,8 @@ static void gfx3d_glBoxTest(u32 v){
 	polys[4].setVertIndexes(3,2,6,7); //top
 	polys[5].setVertIndexes(0,4,5,1); //bottom
 
-	//setup the clipper
-	GFX3D_Clipper::TClippedPoly tempClippedPoly;
+	// setup the clipper
+	static GFX3D_Clipper::TClippedPoly tempClippedPoly; // static lifetime avoids dangling pointer
 	boxtestClipper.clippedPolyCounter = 0;
 	boxtestClipper.clippedPolys = &tempClippedPoly;
 
@@ -1535,12 +1545,12 @@ void gfx3d_glFogColor(u32 v){
 }
 
 void gfx3d_glFogOffset (u32 v){
-        gfx3d.fogOffset = (v&0x7fff);
+		gfx3d.fogOffset = (v&0x7fff);
 }
 
 void gfx3d_glClearDepth(u32 v){
-        v &= 0x7FFF;
-        gfx3d.clearDepth = gfx3d_extendDepth_15_to_24(v);
+		v &= 0x7FFF;
+		gfx3d.clearDepth = gfx3d_extendDepth_15_to_24(v);
 }
 
 // Ignored for now
@@ -1788,227 +1798,227 @@ void gfx3d_execute3D(){
 
 void gfx3d_glFlush(u32 v)
 {
-        //printf("-------------FLUSH------------- (vcount=%d\n",nds.VCount);
-        gfx3d.sortmode = BIT0(v);
-        gfx3d.wbuffer = BIT1(v);
+		//printf("-------------FLUSH------------- (vcount=%d\n",nds.VCount);
+		gfx3d.sortmode = BIT0(v);
+		gfx3d.wbuffer = BIT1(v);
 #if 0
-        if (isSwapBuffers)
-        {
-                //INFO("Error: swapBuffers already use\n");
-        }
+		if (isSwapBuffers)
+		{
+				//INFO("Error: swapBuffers already use\n");
+		}
 #endif
-        
-        isSwapBuffers = TRUE;
-        
-        //well, the game wanted us to flush.
-        //it may be badly timed. lets just flush it.
+		
+		isSwapBuffers = TRUE;
+		
+		//well, the game wanted us to flush.
+		//it may be badly timed. lets just flush it.
 #ifdef FLUSHMODE_HACK
-        gfx3d_doFlush();
+		gfx3d_doFlush();
 #endif
 
-        GFX_DELAY(1);
+		GFX_DELAY(1);
 }
 
 static bool gfx3d_ysort_compare(int num1, int num2)
 {
-        const POLY &poly1 = polylist->list[num1];
-        const POLY &poly2 = polylist->list[num2];
+		const POLY &poly1 = polylist->list[num1];
+		const POLY &poly2 = polylist->list[num2];
 
-        //this may be verified by checking the game create menus in harvest moon island of happiness
-        //also the buttons in the knights in the nightmare frontend depend on this and the perspective division
-        if (poly1.maxy < poly2.maxy) return true;
-        if (poly1.maxy > poly2.maxy) return false;
-        if (poly1.miny > poly2.miny) return true;
-        if (poly1.miny < poly2.miny) return false;
-        //notably, the main shop interface in harvest moon will not have a correct RTN button
-        //i think this is due to a math error rounding its position to one pixel too high and it popping behind
-        //the bar that it sits on.
-        //everything else in all the other menus that I could find looks right..
+		//this may be verified by checking the game create menus in harvest moon island of happiness
+		//also the buttons in the knights in the nightmare frontend depend on this and the perspective division
+		if (poly1.maxy < poly2.maxy) return true;
+		if (poly1.maxy > poly2.maxy) return false;
+		if (poly1.miny > poly2.miny) return true;
+		if (poly1.miny < poly2.miny) return false;
+		//notably, the main shop interface in harvest moon will not have a correct RTN button
+		//i think this is due to a math error rounding its position to one pixel too high and it popping behind
+		//the bar that it sits on.
+		//everything else in all the other menus that I could find looks right..
 
-        //make sure we respect the game's ordering in cases of complete ties
-        //this makes it a stable sort.
-        //this must be a stable sort or else advance wars DOR will flicker in the main map mode
-        if (num1 < num2) return true;
-        else return false;
+		//make sure we respect the game's ordering in cases of complete ties
+		//this makes it a stable sort.
+		//this must be a stable sort or else advance wars DOR will flicker in the main map mode
+		if (num1 < num2) return true;
+		else return false;
 }
 
 static void gfx3d_doFlush()
 {
-        gfx3d.frameCtr++;
+		gfx3d.frameCtr++;
 
-        //the renderer will get the lists we just built
-        gfx3d.polylist = polylist;
-        gfx3d.vertlist = vertlist;
+		//the renderer will get the lists we just built
+		gfx3d.polylist = polylist;
+		gfx3d.vertlist = vertlist;
 
-        //and also our current render state
-        if(BIT1(control)) gfx3d.shading = GFX3D::HIGHLIGHT;
-        else gfx3d.shading = GFX3D::TOON;
-        gfx3d.enableTexturing = BIT0(control);
-        gfx3d.enableAlphaTest = BIT2(control);
-        gfx3d.enableAlphaBlending = BIT3(control);
-        gfx3d.enableAntialiasing = BIT4(control);
-        gfx3d.enableEdgeMarking = BIT5(control);
-        gfx3d.enableFogAlphaOnly = BIT6(control);
-        gfx3d.enableFog = BIT7(control);
-        gfx3d.enableClearImage = BIT14(control);
-        gfx3d.fogShift = (control>>8)&0xF;
+		//and also our current render state
+		if(BIT1(control)) gfx3d.shading = GFX3D::HIGHLIGHT;
+		else gfx3d.shading = GFX3D::TOON;
+		gfx3d.enableTexturing = BIT0(control);
+		gfx3d.enableAlphaTest = BIT2(control);
+		gfx3d.enableAlphaBlending = BIT3(control);
+		gfx3d.enableAntialiasing = BIT4(control);
+		gfx3d.enableEdgeMarking = BIT5(control);
+		gfx3d.enableFogAlphaOnly = BIT6(control);
+		gfx3d.enableFog = BIT7(control);
+		gfx3d.enableClearImage = BIT14(control);
+		gfx3d.fogShift = (control>>8)&0xF;
 
-        int polycount = polylist->count;
+		int polycount = polylist->count;
 
-        //find the min and max y values for each poly.
-        //TODO - this could be a small waste of time if we are manual sorting the translucent polys
-        //TODO - this _MUST_ be moved later in the pipeline, after clipping.
-        //the w-division here is just an approximation to fix the shop in harvest moon island of happiness
-        //also the buttons in the knights in the nightmare frontend depend on this
-        for(int i=0; i<polycount; i++)
-        {
-                POLY &poly = polylist->list[i];
-                float verty = vertlist->list[poly.vertIndexes[0]].y;
-                float vertw = vertlist->list[poly.vertIndexes[0]].w;
-                verty = (verty+vertw)/(2*vertw);
-                poly.miny = poly.maxy = verty;
+		//find the min and max y values for each poly.
+		//TODO - this could be a small waste of time if we are manual sorting the translucent polys
+		//TODO - this _MUST_ be moved later in the pipeline, after clipping.
+		//the w-division here is just an approximation to fix the shop in harvest moon island of happiness
+		//also the buttons in the knights in the nightmare frontend depend on this
+		for(int i=0; i<polycount; i++)
+		{
+				POLY &poly = polylist->list[i];
+				float verty = vertlist->list[poly.vertIndexes[0]].y;
+				float vertw = vertlist->list[poly.vertIndexes[0]].w;
+				verty = (verty+vertw)/(2*vertw);
+				poly.miny = poly.maxy = verty;
 
-                for(int j=1; j<poly.type; j++)
-                {
-                        verty = vertlist->list[poly.vertIndexes[j]].y;
-                        vertw = vertlist->list[poly.vertIndexes[j]].w;
-                        verty = (verty+vertw)/(2*vertw);
-                        poly.miny = min(poly.miny, verty);
-                        poly.maxy = max(poly.maxy, verty);
-                }
-        }
+				for(int j=1; j<poly.type; j++)
+				{
+						verty = vertlist->list[poly.vertIndexes[j]].y;
+						vertw = vertlist->list[poly.vertIndexes[j]].w;
+						verty = (verty+vertw)/(2*vertw);
+						poly.miny = min(poly.miny, verty);
+						poly.maxy = max(poly.maxy, verty);
+				}
+		}
 
-        //we need to sort the poly list with alpha polys last
-        //first, look for opaque polys
-        int ctr=0;
-        for(int i=0;i<polycount;i++) {
-                POLY &poly = polylist->list[i];
-                if(!poly.isTranslucent())
-                        gfx3d.indexlist[ctr++] = i;
-        }
-        int opaqueCount = ctr;
-        //then look for translucent polys
-        for(int i=0;i<polycount;i++) {
-                POLY &poly = polylist->list[i];
-                if(poly.isTranslucent())
-                        gfx3d.indexlist[ctr++] = i;
-        }
+		//we need to sort the poly list with alpha polys last
+		//first, look for opaque polys
+		int ctr=0;
+		for(int i=0;i<polycount;i++) {
+				POLY &poly = polylist->list[i];
+				if(!poly.isTranslucent())
+						gfx3d.indexlist[ctr++] = i;
+		}
+		int opaqueCount = ctr;
+		//then look for translucent polys
+		for(int i=0;i<polycount;i++) {
+				POLY &poly = polylist->list[i];
+				if(poly.isTranslucent())
+						gfx3d.indexlist[ctr++] = i;
+		}
 
-        //now we have to sort the opaque polys by y-value.
-        //(test case: harvest moon island of happiness character cretor UI)
-        //should this be done after clipping??
-        std::sort(gfx3d.indexlist, gfx3d.indexlist + opaqueCount, gfx3d_ysort_compare);
-        
-        if(!gfx3d.sortmode)
-        {
-                //if we are autosorting translucent polys, we need to do this also
-                //TODO - this is unverified behavior. need a test case
-                std::sort(gfx3d.indexlist + opaqueCount, gfx3d.indexlist + polycount, gfx3d_ysort_compare);
-        }
+		//now we have to sort the opaque polys by y-value.
+		//(test case: harvest moon island of happiness character cretor UI)
+		//should this be done after clipping??
+		std::sort(gfx3d.indexlist, gfx3d.indexlist + opaqueCount, gfx3d_ysort_compare);
+		
+		if(!gfx3d.sortmode)
+		{
+				//if we are autosorting translucent polys, we need to do this also
+				//TODO - this is unverified behavior. need a test case
+				std::sort(gfx3d.indexlist + opaqueCount, gfx3d.indexlist + polycount, gfx3d_ysort_compare);
+		}
 
-        //switch to the new lists
-        twiddleLists();
+		//switch to the new lists
+		twiddleLists();
 
-        drawPending = TRUE;
+		drawPending = TRUE;
 }
 
 void gfx3d_VBlankSignal()
 {
-        if (isSwapBuffers)
-        {
+		if (isSwapBuffers)
+		{
 #ifndef FLUSHMODE_HACK
-                gfx3d_doFlush();
+				gfx3d_doFlush();
 #endif
-                GFX_DELAY(392);
-                isSwapBuffers = FALSE;
-        }
+				GFX_DELAY(392);
+				isSwapBuffers = FALSE;
+		}
 }
 
 void gfx3d_VBlankEndSignal(bool skipFrame)
 {
-        if (!drawPending) return;
-        if(skipFrame) return;
+		if (!drawPending) return;
+		if(skipFrame) return;
 
-        drawPending = FALSE;
+		drawPending = FALSE;
 
-        //if the null 3d core is chosen, then we need to clear out the 3d buffers to keep old data from being rendered
-        if(gpu3D == &gpu3DNull || !CommonSettings.showGpu.main)
-        {
-                memset(gfx3d_convertedScreen,0,sizeof(gfx3d_convertedScreen));
-                return;
-        }
+		//if the null 3d core is chosen, then we need to clear out the 3d buffers to keep old data from being rendered
+		if(gpu3D == &gpu3DNull || !CommonSettings.showGpu.main)
+		{
+				memset(gfx3d_convertedScreen,0,sizeof(gfx3d_convertedScreen));
+				return;
+		}
 
-        gpu3D->NDS_3D_Render();
+		gpu3D->NDS_3D_Render();
 }
 
 //#define _3D_LOG
 
 void gfx3d_sendCommandToFIFO(u32 val)
 {
-        gxf_hardware.receive(val);
+		gxf_hardware.receive(val);
 }
 
 void gfx3d_sendCommand(u32 cmd, u32 param)
 {
-        cmd = (cmd & 0x01FF) >> 2;
+		cmd = (cmd & 0x01FF) >> 2;
 
-        //printf("gxFIFO: send 0x%02X: val=0x%08X, size=%03i (direct)\n", cmd, param, gxFIFO.size);
+		//printf("gxFIFO: send 0x%02X: val=0x%08X, size=%03i (direct)\n", cmd, param, gxFIFO.size);
 
 #ifdef _3D_LOG
-        //INFO("gxFIFO: send 0x%02X: val=0x%08X, pipe %02i, fifo %03i (direct)\n", cmd, param, gxPIPE.tail, gxFIFO.tail);
+		//INFO("gxFIFO: send 0x%02X: val=0x%08X, pipe %02i, fifo %03i (direct)\n", cmd, param, gxPIPE.tail, gxFIFO.tail);
 #endif
 #if 1
 	GFX_FIFOsend(cmd, param);
 #else
-        switch (cmd)
-        {
-                case 0x10:              // MTX_MODE - Set Matrix Mode (W)
-                case 0x11:              // MTX_PUSH - Push Current Matrix on Stack (W)
-                case 0x12:              // MTX_POP - Pop Current Matrix from Stack (W)
-                case 0x13:              // MTX_STORE - Store Current Matrix on Stack (W)
-                case 0x14:              // MTX_RESTORE - Restore Current Matrix from Stack (W)
-                case 0x15:              // MTX_IDENTITY - Load Unit Matrix to Current Matrix (W)
-                case 0x16:              // MTX_LOAD_4x4 - Load 4x4 Matrix to Current Matrix (W)
-                case 0x17:              // MTX_LOAD_4x3 - Load 4x3 Matrix to Current Matrix (W)
-                case 0x18:              // MTX_MULT_4x4 - Multiply Current Matrix by 4x4 Matrix (W)
-                case 0x19:              // MTX_MULT_4x3 - Multiply Current Matrix by 4x3 Matrix (W)
-                case 0x1A:              // MTX_MULT_3x3 - Multiply Current Matrix by 3x3 Matrix (W)
-                case 0x1B:              // MTX_SCALE - Multiply Current Matrix by Scale Matrix (W)
-                case 0x1C:              // MTX_TRANS - Mult. Curr. Matrix by Translation Matrix (W)
-                case 0x20:              // COLOR - Directly Set Vertex Color (W)
-                case 0x21:              // NORMAL - Set Normal Vector (W)
-                case 0x22:              // TEXCOORD - Set Texture Coordinates (W)
-                case 0x23:              // VTX_16 - Set Vertex XYZ Coordinates (W)
-                case 0x24:              // VTX_10 - Set Vertex XYZ Coordinates (W)
-                case 0x25:              // VTX_XY - Set Vertex XY Coordinates (W)
-                case 0x26:              // VTX_XZ - Set Vertex XZ Coordinates (W)
-                case 0x27:              // VTX_YZ - Set Vertex YZ Coordinates (W)
-                case 0x28:              // VTX_DIFF - Set Relative Vertex Coordinates (W)
-                case 0x29:              // POLYGON_ATTR - Set Polygon Attributes (W)
-                case 0x2A:              // TEXIMAGE_PARAM - Set Texture Parameters (W)
-                case 0x2B:              // PLTT_BASE - Set Texture Palette Base Address (W)
-                case 0x30:              // DIF_AMB - MaterialColor0 - Diffuse/Ambient Reflect. (W)
-                case 0x31:              // SPE_EMI - MaterialColor1 - Specular Ref. & Emission (W)
-                case 0x32:              // LIGHT_VECTOR - Set Light's Directional Vector (W)
-                case 0x33:              // LIGHT_COLOR - Set Light Color (W)
-                case 0x34:              // SHININESS - Specular Reflection Shininess Table (W)
-                case 0x40:              // BEGIN_VTXS - Start of Vertex List (W)
-                case 0x41:              // END_VTXS - End of Vertex List (W)
-                case 0x60:              // VIEWPORT - Set Viewport (W)
-                case 0x70:              // BOX_TEST - Test if Cuboid Sits inside View Volume (W)
-                case 0x71:              // POS_TEST - Set Position Coordinates for Test (W)
-                case 0x72:              // VEC_TEST - Set Directional Vector for Test (W)
-                        //printf("mmu: sending %02X: %08X\n", cmd,param);
-                        GFX_FIFOsend(cmd, param);
-                        break;
-                case 0x50:              // SWAP_BUFFERS - Swap Rendering Engine Buffer (W)
-                        //printf("mmu: sending %02X: %08X\n", cmd,param);
-                        GFX_FIFOsend(cmd, param);
-                break;
-                default:
-                        //INFO("Unknown 3D command %03X with param 0x%08X (directport)\n", cmd, param);
-                        break;
-        }
+		switch (cmd)
+		{
+				case 0x10:              // MTX_MODE - Set Matrix Mode (W)
+				case 0x11:              // MTX_PUSH - Push Current Matrix on Stack (W)
+				case 0x12:              // MTX_POP - Pop Current Matrix from Stack (W)
+				case 0x13:              // MTX_STORE - Store Current Matrix on Stack (W)
+				case 0x14:              // MTX_RESTORE - Restore Current Matrix from Stack (W)
+				case 0x15:              // MTX_IDENTITY - Load Unit Matrix to Current Matrix (W)
+				case 0x16:              // MTX_LOAD_4x4 - Load 4x4 Matrix to Current Matrix (W)
+				case 0x17:              // MTX_LOAD_4x3 - Load 4x3 Matrix to Current Matrix (W)
+				case 0x18:              // MTX_MULT_4x4 - Multiply Current Matrix by 4x4 Matrix (W)
+				case 0x19:              // MTX_MULT_4x3 - Multiply Current Matrix by 4x3 Matrix (W)
+				case 0x1A:              // MTX_MULT_3x3 - Multiply Current Matrix by 3x3 Matrix (W)
+				case 0x1B:              // MTX_SCALE - Multiply Current Matrix by Scale Matrix (W)
+				case 0x1C:              // MTX_TRANS - Mult. Curr. Matrix by Translation Matrix (W)
+				case 0x20:              // COLOR - Directly Set Vertex Color (W)
+				case 0x21:              // NORMAL - Set Normal Vector (W)
+				case 0x22:              // TEXCOORD - Set Texture Coordinates (W)
+				case 0x23:              // VTX_16 - Set Vertex XYZ Coordinates (W)
+				case 0x24:              // VTX_10 - Set Vertex XYZ Coordinates (W)
+				case 0x25:              // VTX_XY - Set Vertex XY Coordinates (W)
+				case 0x26:              // VTX_XZ - Set Vertex XZ Coordinates (W)
+				case 0x27:              // VTX_YZ - Set Vertex YZ Coordinates (W)
+				case 0x28:              // VTX_DIFF - Set Relative Vertex Coordinates (W)
+				case 0x29:              // POLYGON_ATTR - Set Polygon Attributes (W)
+				case 0x2A:              // TEXIMAGE_PARAM - Set Texture Parameters (W)
+				case 0x2B:              // PLTT_BASE - Set Texture Palette Base Address (W)
+				case 0x30:              // DIF_AMB - MaterialColor0 - Diffuse/Ambient Reflect. (W)
+				case 0x31:              // SPE_EMI - MaterialColor1 - Specular Ref. & Emission (W)
+				case 0x32:              // LIGHT_VECTOR - Set Light's Directional Vector (W)
+				case 0x33:              // LIGHT_COLOR - Set Light Color (W)
+				case 0x34:              // SHININESS - Specular Reflection Shininess Table (W)
+				case 0x40:              // BEGIN_VTXS - Start of Vertex List (W)
+				case 0x41:              // END_VTXS - End of Vertex List (W)
+				case 0x60:              // VIEWPORT - Set Viewport (W)
+				case 0x70:              // BOX_TEST - Test if Cuboid Sits inside View Volume (W)
+				case 0x71:              // POS_TEST - Set Position Coordinates for Test (W)
+				case 0x72:              // VEC_TEST - Set Directional Vector for Test (W)
+						//printf("mmu: sending %02X: %08X\n", cmd,param);
+						GFX_FIFOsend(cmd, param);
+						break;
+				case 0x50:              // SWAP_BUFFERS - Swap Rendering Engine Buffer (W)
+						//printf("mmu: sending %02X: %08X\n", cmd,param);
+						GFX_FIFOsend(cmd, param);
+				break;
+				default:
+						//INFO("Unknown 3D command %03X with param 0x%08X (directport)\n", cmd, param);
+						break;
+		}
 #endif
 }
 
@@ -2016,7 +2026,7 @@ void gfx3d_sendCommand(u32 cmd, u32 param)
 
 void gfx3d_Control(u32 v)
 {
-        control = v;
+		control = v;
 }
 
 //--------------
@@ -2025,29 +2035,29 @@ void gfx3d_Control(u32 v)
 /*
 void gfx3d_glGetMatrix(unsigned int m_mode, int index, float* dest)
 {
-        if(index == -1)
-        {
-                MatrixCopy(dest, mtxCurrent[m_mode]);
-                return;
-        }
+		if(index == -1)
+		{
+				MatrixCopy(dest, mtxCurrent[m_mode]);
+				return;
+		}
 
-        MatrixCopy(dest, MatrixStackGetPos(&mtxStack[m_mode], index));
+		MatrixCopy(dest, MatrixStackGetPos(&mtxStack[m_mode], index));
 }
 //*/
 
 void gfx3d_glGetLightDirection(unsigned int index, unsigned int* dest)
 {
-        *dest = lightDirection[index];
+		*dest = lightDirection[index];
 }
 
 void gfx3d_glGetLightColor(unsigned int index, unsigned int* dest)
 {
-        *dest = lightColor[index];
+		*dest = lightColor[index];
 }
 
 void gfx3d_GetLineData(int line, u8** dst)
 {
-        *dst = gfx3d_convertedScreen+((line)<<(8+2));
+		*dst = gfx3d_convertedScreen+((line)<<(8+2));
 }
 
 void gfx3d_GetLineData15bpp(int line, u16** dst)
@@ -2080,86 +2090,86 @@ void gfx3d_GetLineData15bpp(int line, u16** dst)
 //consider building a little state structure that looks exactly like this describes
 
 SFORMAT SF_GFX3D[]={
-        { "GCTL", 4, 1, &control}, // no longer regenerated indirectly, see comment in loadstate()
-        { "GPAT", 4, 1, &polyAttr},
-        { "GPAP", 4, 1, &polyAttrPending},
-        { "GINB", 4, 1, &inBegin},
-        { "GTFM", 4, 1, &textureFormat},
-        { "GTPA", 4, 1, &texturePalette},
-        { "GMOD", 4, 1, &mode},
-        { "GMTM", 4,16, mtxTemporal},
-        { "GMCU", 4,64, mtxCurrent},
-        { "ML4I", 1, 1, &ML4x4ind},
-        { "ML3I", 1, 1, &ML4x3ind},
-        { "MM4I", 1, 1, &MM4x4ind},
-        { "MM3I", 1, 1, &MM4x3ind},
-        { "MMxI", 1, 1, &MM3x3ind},
-        { "GSCO", 4, 1, u16coord},
-        { "GCOI", 1, 1, &coordind},
-        { "GVFM", 4, 1, &vtxFormat},
-        { "GTRN", 4, 4, trans},
-        { "GTRI", 1, 1, &transind},
-        { "GSCA", 4, 4, scale},
-        { "GSCI", 1, 1, &scaleind},
-        { "G_T_", 4, 1, &currentTexCoord.t},
-        { "G_S_", 4, 1, &currentTexCoord.s},
-        { "GL_T", 4, 1, &lastTexCoord.t},
-        { "GL_S", 4, 1, &lastTexCoord.s},
-        { "GLCM", 4, 1, &clCmd},
-        { "GLIN", 4, 1, &clInd},
-        { "GLI2", 4, 1, &clInd2},
-        { "GLSB", 4, 1, &isSwapBuffers},
-        { "GLBT", 4, 1, &BTind},
-        { "GLPT", 4, 1, &PTind},
-        { "GLPC", 4, 4, PTcoords},
-        { "GBTC", 2, 6, &BTcoords[0]},
-        { "GFHE", 4, 1, &gxFIFO.head},
-        { "GFTA", 4, 1, &gxFIFO.tail},
-        { "GFSZ", 4, 1, &gxFIFO.size},
-        { "GFCM", 1, HACK_GXIFO_SIZE, &gxFIFO.cmd[0]},
-        { "GFPM", 4, HACK_GXIFO_SIZE, &gxFIFO.param[0]},
-        { "GPHE", 1, 1, &gxPIPE.head},
-        { "GPTA", 1, 1, &gxPIPE.tail},
-        { "GPSZ", 1, 1, &gxPIPE.size},
-        { "GPCM", 1, 4, &gxPIPE.cmd[0]},
-        { "GPPM", 4, 4, &gxPIPE.param[0]},
-        { "GCOL", 1, 4, &colorRGB[0]},
-        { "GLCO", 4, 4, lightColor},
-        { "GLDI", 4, 4, lightDirection},
-        { "GMDI", 2, 1, &dsDiffuse},
-        { "GMAM", 2, 1, &dsAmbient},
-        { "GMSP", 2, 1, &dsSpecular},
-        { "GMEM", 2, 1, &dsEmission},
-        { "GFLP", 4, 1, &flushPending},
-        { "GDRP", 4, 1, &drawPending},
-        { "GSET", 4, 1, &gfx3d.enableTexturing},
-        { "GSEA", 4, 1, &gfx3d.enableAlphaTest},
-        { "GSEB", 4, 1, &gfx3d.enableAlphaBlending},
-        { "GSEX", 4, 1, &gfx3d.enableAntialiasing},
-        { "GSEE", 4, 1, &gfx3d.enableEdgeMarking},
-        { "GSEC", 4, 1, &gfx3d.enableClearImage},
-        { "GSEF", 4, 1, &gfx3d.enableFog},
-        { "GSEO", 4, 1, &gfx3d.enableFogAlphaOnly},
-        { "GFSH", 4, 1, &gfx3d.fogShift},
-        { "GSSH", 4, 1, &gfx3d.shading},
-        { "GSWB", 4, 1, &gfx3d.wbuffer},
-        { "GSSM", 4, 1, &gfx3d.sortmode},
-        { "GSAR", 1, 1, &gfx3d.alphaTestRef},
-        { "GSVP", 4, 1, &viewport},
-        { "GSCC", 4, 1, &gfx3d.clearColor},
-        { "GSCD", 4, 1, &gfx3d.clearDepth},
-        { "GSFC", 4, 4, &gfx3d.fogColor},
-        { "GSFO", 4, 1, &gfx3d.fogOffset},
-        { "GST2", 2, 32, gfx3d.u16ToonTable},
-        { "GSST", 4, 128, shininessTable},
-        { "GSSI", 4, 1, &shininessInd},
-        //------------------------
-        { "GTST", 4, 1, &triStripToggle},
-        { "GTVC", 4, 1, &tempVertInfo.count},
-        { "GTVM", 4, 4, tempVertInfo.map},
-        { "GTVF", 4, 1, &tempVertInfo.first},
-        { "G3CX", 1, 4*256*192, gfx3d_convertedScreen},
-        { 0 }
+		{ "GCTL", 4, 1, &control}, // no longer regenerated indirectly, see comment in loadstate()
+		{ "GPAT", 4, 1, &polyAttr},
+		{ "GPAP", 4, 1, &polyAttrPending},
+		{ "GINB", 4, 1, &inBegin},
+		{ "GTFM", 4, 1, &textureFormat},
+		{ "GTPA", 4, 1, &texturePalette},
+		{ "GMOD", 4, 1, &mode},
+		{ "GMTM", 4,16, mtxTemporal},
+		{ "GMCU", 4,64, mtxCurrent},
+		{ "ML4I", 1, 1, &ML4x4ind},
+		{ "ML3I", 1, 1, &ML4x3ind},
+		{ "MM4I", 1, 1, &MM4x4ind},
+		{ "MM3I", 1, 1, &MM4x3ind},
+		{ "MMxI", 1, 1, &MM3x3ind},
+		{ "GSCO", 4, 1, u16coord},
+		{ "GCOI", 1, 1, &coordind},
+		{ "GVFM", 4, 1, &vtxFormat},
+		{ "GTRN", 4, 4, trans},
+		{ "GTRI", 1, 1, &transind},
+		{ "GSCA", 4, 4, scale},
+		{ "GSCI", 1, 1, &scaleind},
+		{ "G_T_", 4, 1, &currentTexCoord.t},
+		{ "G_S_", 4, 1, &currentTexCoord.s},
+		{ "GL_T", 4, 1, &lastTexCoord.t},
+		{ "GL_S", 4, 1, &lastTexCoord.s},
+		{ "GLCM", 4, 1, &clCmd},
+		{ "GLIN", 4, 1, &clInd},
+		{ "GLI2", 4, 1, &clInd2},
+		{ "GLSB", 4, 1, &isSwapBuffers},
+		{ "GLBT", 4, 1, &BTind},
+		{ "GLPT", 4, 1, &PTind},
+		{ "GLPC", 4, 4, PTcoords},
+		{ "GBTC", 2, 6, &BTcoords[0]},
+		{ "GFHE", 4, 1, &gxFIFO.head},
+		{ "GFTA", 4, 1, &gxFIFO.tail},
+		{ "GFSZ", 4, 1, &gxFIFO.size},
+		{ "GFCM", 1, HACK_GXIFO_SIZE, &gxFIFO.cmd[0]},
+		{ "GFPM", 4, HACK_GXIFO_SIZE, &gxFIFO.param[0]},
+		{ "GPHE", 1, 1, &gxPIPE.head},
+		{ "GPTA", 1, 1, &gxPIPE.tail},
+		{ "GPSZ", 1, 1, &gxPIPE.size},
+		{ "GPCM", 1, 4, &gxPIPE.cmd[0]},
+		{ "GPPM", 4, 4, &gxPIPE.param[0]},
+		{ "GCOL", 1, 4, &colorRGB[0]},
+		{ "GLCO", 4, 4, lightColor},
+		{ "GLDI", 4, 4, lightDirection},
+		{ "GMDI", 2, 1, &dsDiffuse},
+		{ "GMAM", 2, 1, &dsAmbient},
+		{ "GMSP", 2, 1, &dsSpecular},
+		{ "GMEM", 2, 1, &dsEmission},
+		{ "GFLP", 4, 1, &flushPending},
+		{ "GDRP", 4, 1, &drawPending},
+		{ "GSET", 4, 1, &gfx3d.enableTexturing},
+		{ "GSEA", 4, 1, &gfx3d.enableAlphaTest},
+		{ "GSEB", 4, 1, &gfx3d.enableAlphaBlending},
+		{ "GSEX", 4, 1, &gfx3d.enableAntialiasing},
+		{ "GSEE", 4, 1, &gfx3d.enableEdgeMarking},
+		{ "GSEC", 4, 1, &gfx3d.enableClearImage},
+		{ "GSEF", 4, 1, &gfx3d.enableFog},
+		{ "GSEO", 4, 1, &gfx3d.enableFogAlphaOnly},
+		{ "GFSH", 4, 1, &gfx3d.fogShift},
+		{ "GSSH", 4, 1, &gfx3d.shading},
+		{ "GSWB", 4, 1, &gfx3d.wbuffer},
+		{ "GSSM", 4, 1, &gfx3d.sortmode},
+		{ "GSAR", 1, 1, &gfx3d.alphaTestRef},
+		{ "GSVP", 4, 1, &viewport},
+		{ "GSCC", 4, 1, &gfx3d.clearColor},
+		{ "GSCD", 4, 1, &gfx3d.clearDepth},
+		{ "GSFC", 4, 4, &gfx3d.fogColor},
+		{ "GSFO", 4, 1, &gfx3d.fogOffset},
+		{ "GST2", 2, 32, gfx3d.u16ToonTable},
+		{ "GSST", 4, 128, shininessTable},
+		{ "GSSI", 4, 1, &shininessInd},
+		//------------------------
+		{ "GTST", 4, 1, &triStripToggle},
+		{ "GTVC", 4, 1, &tempVertInfo.count},
+		{ "GTVM", 4, 4, tempVertInfo.map},
+		{ "GTVF", 4, 1, &tempVertInfo.first},
+		{ "G3CX", 1, 4*256*192, gfx3d_convertedScreen},
+		{ 0 }
 };
 
 //-------------savestate
@@ -2258,7 +2268,7 @@ bool gfx3d_loadstate(EMUFILE* is, int size)
 
 template<typename T>
 static T interpolate(const float ratio, const T& x0, const T& x1) {
-        return (T)(x0 + (float)(x1-x0) * (ratio));
+		return (T)(x0 + (float)(x1-x0) * (ratio));
 }
 
 

@@ -1,21 +1,21 @@
  /* Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifndef _READWRITE_H_
@@ -23,7 +23,7 @@
 
 #include "types.h"
 #include "emufile.h"
-#include <iostream>
+#include <istream>
 #include <cstdio>
 #include <vector>
 
@@ -34,29 +34,25 @@ int write32le(u32 b, EMUFILE* os);
 int write64le(u64 b, EMUFILE* os);
 
 int read8le(u8 *Bufo, EMUFILE*is);
-int read16le(u16 *Bufo, EMUFILE*is);
-inline int read16le(s16 *Bufo, EMUFILE*is) { return read16le((u16*)Bufo,is); }
-int read32le(u32 *Bufo, EMUFILE*is);
-inline int read32le(s32 *Bufo, EMUFILE*is) { return read32le((u32*)Bufo,is); }
-int read64le(u64 *Bufo, EMUFILE*is);
+int read16le(u16 *Bufo, EMUFILE* is);
+inline int read16le(s16 *Bufo, EMUFILE* is) { return read16le(reinterpret_cast<u16*>(Bufo), is); }
+int read32le(u32 *Bufo, EMUFILE* is);
+inline int read32le(s32 *Bufo, EMUFILE* is) { return read32le(reinterpret_cast<u32*>(Bufo), is); }
+int read64le(u64 *Bufo, EMUFILE* is);
 int read16le(u16 *Bufo, std::istream *is);
 
-
 template<typename T>
-int readle(T *Bufo, EMUFILE*is)
+int readle(T *Bufo, EMUFILE* is)
 {
-	CTASSERT(sizeof(T)==1||sizeof(T)==2||sizeof(T)==4||sizeof(T)==8);
-	switch(sizeof(T)) {
-		case 1: return read8le((u8*)Bufo,is);
-		case 2: return read16le((u16*)Bufo,is);
-		case 4: return read32le((u32*)Bufo,is);
-		case 8: return read64le((u64*)Bufo,is);
-		default:
-			return 0;
+	static_assert(sizeof(T)==1 || sizeof(T)==2 || sizeof(T)==4 || sizeof(T)==8, "readle requires T to be 1,2,4 or 8 bytes");
+	switch (sizeof(T)) {
+		case 1: return read8le(reinterpret_cast<u8*>(Bufo), is);
+		case 2: return read16le(reinterpret_cast<u16*>(Bufo), is);
+		case 4: return read32le(reinterpret_cast<u32*>(Bufo), is);
+		case 8: return read64le(reinterpret_cast<u64*>(Bufo), is);
+		default: return 0;
+		}
 	}
-}
-
-
 
 int readbool(bool *b, EMUFILE* is);
 void writebool(bool b, EMUFILE* os);

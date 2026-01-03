@@ -1,21 +1,21 @@
 /*
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include "filebrowser.h"
@@ -99,18 +99,19 @@ static ret_action textFileBrowser(file_browser_st *file_struct){
 			// Print an error?
 		}
 		
-		char filename[MAX_PATH];
-		char div = '/';
-		memset(filename, 0, MAX_PATH);
-		
-		// We have to pass the entire filepath to the stat function
-		strncat(filename, file_struct->path, pathLen);
-		// Add in the divider
-		strncat(filename, &div, 1);
-		// ...And the name
-		strncat(filename, tdir->d_name, tdirNameLen);
-		
-		stat(filename,&fstat);
+		char filename[MAX_PATH] = {0};
+
+		/* Build the path into a temporary buffer with snprintf to avoid
+		   strncat truncation and NUL-termination issues. Check the return
+		   value to detect overflow and skip overly long names. */
+		int needed = snprintf(filename, sizeof(filename), "%s/%s",
+							  file_struct->path, tdir->d_name);
+		if (needed < 0 || (size_t)needed >= sizeof(filename)) {
+			/* Too long or encoding error — skip this entry */
+			continue;
+		}
+
+		stat(filename, &fstat);
 
 		// If it is a directory or a .nds file:
 		if(S_ISDIR(fstat.st_mode) || TYPE_FILTER(filename)){
@@ -187,20 +188,29 @@ static ret_action textFileBrowser(file_browser_st *file_struct){
 			draw = 1;
 		}
 
-		if(GetInput(A, A, A)){
-			if(index == 0 && strcmp(dir[index].name, "..") == 0) {
+		if (GetInput(A, A, A)) {
+			if (index == 0 && strcmp(dir[index].name, "..") == 0) {
 				browse_back(file_struct->path);
-			}else{
-				sprintf(file_struct->path, "%s/%s", file_struct->path, dir[index].name);
+			} else {
+				char tmp[MAX_PATH] = {0};
+				int needed = snprintf(tmp, sizeof(tmp), "%s/%s", file_struct->path, dir[index].name);
+				if (needed < 0 || (size_t)needed >= sizeof(tmp)) {
+					/* Path would overflow destination; abort selection gracefully */
+					free(dir);
+					return BROWSER_CANCELED;
+				}
+				/* Copy the safe result back into the original buffer */
+				strncpy(file_struct->path, tmp, sizeof(file_struct->path) - 1);
+				file_struct->path[sizeof(file_struct->path) - 1] = '\0';
 			}
 
 			BOOL is_dir = (dir[index].attr & S_IFDIR);
 			free(dir);
-			if(is_dir) {
+			if (is_dir) {
 				return BROWSER_CHANGE_FOLDER;
-			}
-			else
+			} else {
 				return BROWSER_FILE_SELECTED;
+			}
 		}
 
 		/*if(GetInput(B, B, B)) 

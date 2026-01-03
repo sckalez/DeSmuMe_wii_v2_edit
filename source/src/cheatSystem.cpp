@@ -1,22 +1,22 @@
 /*  Copyright (C) 2006 yopyop
 	Copyright 2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <string.h>
@@ -393,36 +393,63 @@ void CHEATS::ARparser(CHEATS_LIST list)
 
 BOOL CHEATS::XXcodePreParser(CHEATS_LIST *list, char *code)
 {
-	int		count = 0;
-	u16		t = 0;
-	char	tmp_buf[sizeof(list->code)];
+	if (!list || !code) return FALSE;
 
-	memset(tmp_buf, 0, sizeof(tmp_buf));
-	// remove wrong chars
-	for (unsigned int i=0; i < strlen(code); i++)
+	// tmp_buf holds only hex characters extracted from `code`
+	char tmp_buf[sizeof(list->code)];
+	size_t tmp_cap = sizeof(tmp_buf);
+
+	memset(tmp_buf, 0, tmp_cap);
+
+	// remove wrong chars and collect only valid hex chars
+	size_t t = 0;
+	size_t code_len = strlen(code);
+	for (size_t i = 0; i < code_len; ++i)
 	{
 		if (strchr(hexValid, code[i]))
 		{
-				tmp_buf[t] = code[i];
-				t++;
+			if (t + 1 >= tmp_cap) break; // leave room for NUL
+			tmp_buf[t++] = code[i];
 		}
 	}
+	tmp_buf[t] = '\0';
 
-	if ((strlen(tmp_buf) % 8) != 0) return FALSE;			// error
-	if ((strlen(tmp_buf) % 16) != 0) return FALSE;			// error
+	// must be multiple of 8 and 16
+	if ((t % 8) != 0) return FALSE;
+	if ((t % 16) != 0) return FALSE;
 
-	// TODO: syntax check
-	count = (strlen(tmp_buf) / 16);
-	for (int i=0; i < count; i++)
+	// number of 16-char entries
+	size_t count = t / 16;
+
+	// ensure we don't write past list->code
+	size_t max_entries = sizeof(list->code) / sizeof(list->code[0]);
+	if (count > max_entries) count = max_entries;
+
+	// parse each 16-char chunk into two 32-bit hex values
+	for (size_t i = 0; i < count; ++i)
 	{
-		char buf[8] = {0};
-		strncpy(buf, tmp_buf+(i*16), 8);
-		sscanf_s(buf, "%x", &list->code[i][0]);
-		strncpy(buf, tmp_buf+(i*16) + 8, 8);
-		sscanf_s(buf, "%x", &list->code[i][1]);
+		size_t off = i * 16;
+		if (off + 16 > t) break; // defensive
+
+		char buf[9]; // 8 chars + NUL
+		char *endptr = nullptr;
+
+		// first 8 hex chars
+		memcpy(buf, tmp_buf + off, 8);
+		buf[8] = '\0';
+		unsigned long v0 = strtoul(buf, &endptr, 16);
+		if (endptr == buf) v0 = 0;
+		list->code[i][0] = (u32)v0;
+
+		// next 8 hex chars
+		memcpy(buf, tmp_buf + off + 8, 8);
+		buf[8] = '\0';
+		unsigned long v1 = strtoul(buf, &endptr, 16);
+		if (endptr == buf) v1 = 0;
+		list->code[i][1] = (u32)v1;
 	}
-	
-	list->num = count;
+
+	list->num = static_cast<int>(count);
 	list->size = 0;
 	return TRUE;
 }
@@ -604,94 +631,151 @@ char *CHEATS::clearCode(char *s)
 
 BOOL CHEATS::load()
 {
-	FILE			*flist = fopen((char *)filename, "r");
-	char			buf[sizeof(list[0].code) * 2 + 200] = { 0 };
-	u32				last = 0;
-	CHEATS_LIST		tmp_cht = { 0 };
-	char			tmp_code[sizeof(list[0].code) * 2] = { 0 };
-	u32				line = 0;
+	FILE *flist = fopen((char *)filename, "r");
+	if (!flist) return FALSE;
 
-	if (flist)
+	INFO("Load cheats: %s\n", filename);
+	clear();
+
+	// Buffers sized from list[0].code so they match the rest of the code
+	const size_t code_pair_bytes = sizeof(list[0].code);           // bytes for one pair-array
+	const size_t tmp_code_cap = code_pair_bytes * 2;               // capacity for hex text (two 32-bit values per entry)
+	char buf[code_pair_bytes * 2 + 200] = { 0 };
+	char tmp_code[tmp_code_cap];
+	u32 last = 0;
+	u32 line = 0;
+
+	while (fgets(buf, sizeof(buf), flist) != NULL)
 	{
-		INFO("Load cheats: %s\n", filename);
-		clear();
-		last = 0; line = 0;
-		while (!feof(flist))
+		line++; // only for debug
+
+		trim(buf);
+		if (buf[0] == '\0' || buf[0] == ';') continue;
+
+		CHEATS_LIST tmp_cht;
+		memset(&tmp_cht, 0, sizeof(tmp_cht));
+
+		// Determine cheat type from the line prefix
+		if (buf[0] == 'D' && buf[1] == 'S')        tmp_cht.type = 0; // internal
+		else if (buf[0] == 'A' && buf[1] == 'R')   tmp_cht.type = 1; // Action Replay
+		else if (buf[0] == 'B' && buf[1] == 'S')   tmp_cht.type = 2; // Codebreaker
+		else                                        continue;
+
+		// TODO: CB not supported (original code checked type==3, keep compatibility)
+		if (tmp_cht.type == 3)
 		{
-			line++;				// only for debug
-			memset(buf, 0, sizeof(buf));
-			if (fgets(buf, sizeof(buf), flist) == NULL) {
-				//INFO("Cheats: Failed to read from flist at line %i\n", line);
-				continue;
-			}
-			trim(buf);
-			if ((strlen(buf) == 0) || (buf[0] == ';')) continue;
+			INFO("Cheats: Codebreaker code not supported at line %i\n", line);
+			continue;
+		}
 
-			memset(&tmp_cht, 0, sizeof(tmp_cht));
-			if ((buf[0] == 'D') && (buf[1] == 'S'))		// internal
-				tmp_cht.type = 0;
+		// Extract the code portion (original used buf+5)
+		memset(tmp_code, 0, tmp_code_cap);
+		const char *raw_code = buf + 5;
+		if (!raw_code) raw_code = "";
+
+		// clearCode may return a pointer into tmp_code; call it on a local copy
+		// Build a safe temporary copy of raw_code first (bounded)
+		{
+			size_t raw_len = strlen(raw_code);
+			size_t copy_len = (raw_len < tmp_code_cap - 1) ? raw_len : (tmp_code_cap - 1);
+			memcpy(tmp_code, raw_code, copy_len);
+			tmp_code[copy_len] = '\0';
+		}
+
+		// Now call clearCode on the bounded tmp_code and copy the cleared result back safely
+		{
+			const char *cleared = clearCode(tmp_code);
+			if (!cleared || cleared[0] == '\0')
+			{
+				tmp_code[0] = '\0';
+			}
 			else
-				if ((buf[0] == 'A') && (buf[1] == 'R'))	// Action Replay
-					tmp_cht.type = 1;
-				else
-					if ((buf[0] == 'B') && (buf[1] == 'S'))	// Codebreaker
-						tmp_cht.type = 2;
-					else
-						continue;
-			// TODO: CB not supported
-			if (tmp_cht.type == 3)
 			{
-				INFO("Cheats: Codebreaker code no supported at line %i\n", line);
-				continue;
+				// Copy at most tmp_code_cap-1 bytes and NUL-terminate
+				size_t c_len = strlen(cleared);
+				size_t c_copy = (c_len < tmp_code_cap - 1) ? c_len : (tmp_code_cap - 1);
+				memcpy(tmp_code, cleared, c_copy);
+				tmp_code[c_copy] = '\0';
 			}
-			
-			memset(tmp_code, 0, sizeof(tmp_code));
-			strcpy(tmp_code, (char*)(buf+5));
-			strcpy(tmp_code, clearCode(tmp_code));
-			if ((strlen(tmp_code) == 0) || (strlen(tmp_code) % 16 !=0))
+		}
+
+		// Validate code length: must be non-empty and multiple of 16 hex chars (two 32-bit values)
+		size_t tmp_len = strlen(tmp_code);
+		if (tmp_len == 0 || (tmp_len % 16) != 0)
+		{
+			INFO("Cheats: Syntax error at line %i\n", line);
+			continue;
+		}
+
+		// Enabled flag (original used buf[3] == '0' ? false : true)
+		tmp_cht.enabled = (buf[3] == '0') ? FALSE : TRUE;
+
+		// Optional description after ';' (if present)
+		char *semi = strchr(buf, ';');
+		if (semi && semi[1] != '\0')
+		{
+			// copy description safely into tmp_cht.description
+			snprintf(tmp_cht.description, sizeof(tmp_cht.description), "%s", semi + 1);
+		}
+
+		// Number of code entries (each entry is 16 hex chars -> two 32-bit values)
+		u32 entries = static_cast<u32>(tmp_len / 16);
+		tmp_cht.num = entries;
+
+		// Internal cheats only allow a single value (original behavior)
+		if (tmp_cht.type == 0 && tmp_cht.num > 1)
+		{
+			INFO("Cheats: Too many values for internal cheat at line %i\n", line);
+			continue;
+		}
+
+		// Parse each 16-char chunk into two 32-bit values
+		// Ensure we don't overflow tmp_cht.code array
+		const size_t max_entries = sizeof(tmp_cht.code) / sizeof(tmp_cht.code[0]);
+		if (entries > max_entries) entries = static_cast<u32>(max_entries);
+
+		for (u32 i = 0; i < entries; ++i)
+		{
+			size_t off = i * 16;
+			char hexbuf[9]; // 8 chars + NUL
+
+			// first 8 chars
+			memcpy(hexbuf, tmp_code + off, 8);
+			hexbuf[8] = '\0';
+			unsigned long v0 = strtoul(hexbuf, nullptr, 16);
+			tmp_cht.code[i][0] = static_cast<u32>(v0);
+
+			if (tmp_cht.type == 0)
 			{
-				INFO("Cheats: Syntax error at line %i\n", line);
-				continue;
+				tmp_cht.size = std::min<u32>(3, ((tmp_cht.code[i][0] & 0xF0000000) >> 28));
+				tmp_cht.code[i][0] &= 0x00FFFFFF;
 			}
 
-			tmp_cht.enabled = (buf[3] == '0')?false:true;
-			u32 descr_pos = (u32)(std::max<s32>(strchr((char*)buf, ';') - buf, 0));
-			if (descr_pos != 0)
-				strcpy(tmp_cht.description, (buf + descr_pos + 1));
+			// next 8 chars
+			memcpy(hexbuf, tmp_code + off + 8, 8);
+			hexbuf[8] = '\0';
+			unsigned long v1 = strtoul(hexbuf, nullptr, 16);
+			tmp_cht.code[i][1] = static_cast<u32>(v1);
+		}
 
-			tmp_cht.num = strlen(tmp_code) / 16;
-			if ((tmp_cht.type == 0) && (tmp_cht.num > 1))
-			{
-				INFO("Cheats: Too many values for internal cheat\n", line);
-				continue;
-			}
-			for (int i = 0; i < tmp_cht.num; i++)
-			{
-				char tmp_buf[9] = {0};
-
-				strncpy(tmp_buf, (char*)(tmp_code + (i*16)), 8);
-				sscanf_s(tmp_buf, "%x", &tmp_cht.code[i][0]);
-
-				if (tmp_cht.type == 0)
-				{
-					tmp_cht.size = std::min<u32>(3, ((tmp_cht.code[i][0] & 0xF0000000) >> 28));
-					tmp_cht.code[i][0] &= 0x00FFFFFF;
-				}
-				
-				strncpy(tmp_buf, (char*)(tmp_code + (i*16) + 8), 8);
-				sscanf_s(tmp_buf, "%x", &tmp_cht.code[i][1]);
-			}
-
+		// Append to list if there is room
+		const size_t list_capacity = sizeof(this->list) / sizeof(this->list[0]);
+		if (last < (u32)list_capacity)
+		{
 			memcpy(&list[last], &tmp_cht, sizeof(tmp_cht));
 			last++;
 		}
-
-		fclose(flist);
-		num = last;
-		INFO("Added %i cheat codes\n", num);
-		return TRUE;
+		else
+		{
+			INFO("Cheats: cheat list full, skipping remaining entries\n");
+			break;
+		}
 	}
-	return FALSE;
+
+	fclose(flist);
+	num = last;
+	INFO("Added %i cheat codes\n", num);
+	return TRUE;
 }
 
 BOOL CHEATS::push()

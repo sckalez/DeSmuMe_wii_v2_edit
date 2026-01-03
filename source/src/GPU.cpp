@@ -1,24 +1,24 @@
 /*  Copyright (C) 2006 yopyop
-    Copyright (C) 2006-2007 Theo Berkau
-    Copyright (C) 2007 shash
+	Copyright (C) 2006-2007 Theo Berkau
+	Copyright (C) 2007 shash
 	Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <algorithm>
@@ -60,24 +60,24 @@ u16 gpu_angle = 0;
 
 const size sprSizeTab[4][4] = 
 {
-     {{8, 8}, {16, 8}, {8, 16}, {8, 8}},
-     {{16, 16}, {32, 8}, {8, 32}, {8, 8}},
-     {{32, 32}, {32, 16}, {16, 32}, {8, 8}},
-     {{64, 64}, {64, 32}, {32, 64}, {8, 8}},
+	 {{8, 8}, {16, 8}, {8, 16}, {8, 8}},
+	 {{16, 16}, {32, 8}, {8, 32}, {8, 8}},
+	 {{32, 32}, {32, 16}, {16, 32}, {8, 8}},
+	 {{64, 64}, {64, 32}, {32, 64}, {8, 8}},
 };
 
 
 
 const BGType GPU_mode2type[8][4] = 
 {
-      {BGType_Text, BGType_Text, BGType_Text, BGType_Text},
-      {BGType_Text, BGType_Text, BGType_Text, BGType_Affine},
-      {BGType_Text, BGType_Text, BGType_Affine, BGType_Affine},
-      {BGType_Text, BGType_Text, BGType_Text, BGType_AffineExt},
-      {BGType_Text, BGType_Text, BGType_Affine, BGType_AffineExt},
-      {BGType_Text, BGType_Text, BGType_AffineExt, BGType_AffineExt},
-      {BGType_Invalid, BGType_Invalid, BGType_Large8bpp, BGType_Invalid},
-      {BGType_Invalid, BGType_Invalid, BGType_Invalid, BGType_Invalid}
+	  {BGType_Text, BGType_Text, BGType_Text, BGType_Text},
+	  {BGType_Text, BGType_Text, BGType_Text, BGType_Affine},
+	  {BGType_Text, BGType_Text, BGType_Affine, BGType_Affine},
+	  {BGType_Text, BGType_Text, BGType_Text, BGType_AffineExt},
+	  {BGType_Text, BGType_Text, BGType_Affine, BGType_AffineExt},
+	  {BGType_Text, BGType_Text, BGType_AffineExt, BGType_AffineExt},
+	  {BGType_Invalid, BGType_Invalid, BGType_Large8bpp, BGType_Invalid},
+	  {BGType_Invalid, BGType_Invalid, BGType_Invalid, BGType_Invalid}
 };
 
 //dont ever think of changing these to bits because you could avoid the multiplies in the main tile blitter.
@@ -200,7 +200,7 @@ GPU * GPU_Init(u8 l)
 
 void GPU_Reset(GPU *g, u8 l)
 {
-	memset(g, 0, sizeof(GPU));
+	*g = GPU();
 
 	//important for emulator stability for this to initialize, since we have to setup a table based on it
 	g->BLDALPHA_EVA = 0;
@@ -327,7 +327,7 @@ void GPU_setMasterBrightness (GPU *gpu, u16 val)
 	if(!nds.isInVblank()) {
 		PROGINFO("Changing master brightness outside of vblank\n");
 	}
- 	gpu->MasterBrightFactor = (val & 0x1F);
+	gpu->MasterBrightFactor = (val & 0x1F);
 	gpu->MasterBrightMode	= (val>>14);
 }
 
@@ -342,7 +342,7 @@ void SetupFinalPixelBlitter (GPU *gpu)
 	gpu->setFinalColor3d_funcNum  = winUsedBlend;
 	
 }
-    
+	
 //Sets up LCD control variables for Display Engines A and B for quick reading
 void GPU_setVideoProp(GPU * gpu, u32 p)
 {
@@ -393,7 +393,7 @@ void GPU_setVideoProp(GPU * gpu, u32 p)
 		gpu->sprBoundary = 5;
 		gpu->spriteRenderMode = GPU::SPRITE_2D;
 	}
-     
+	 
 	if(cnt->OBJ_BMP_1D_Bound && (gpu->core == GPU_MAIN))
 		gpu->sprBMPBoundary = 8;
 	else
@@ -823,7 +823,7 @@ FORCEINLINE void GPU::___setFinalColorBck(u16 color, const u32 x, const int opaq
 			//--DCN: I hate goto; hate it like pain
 			setFinalColorBG<BACKDROP,FUNCNUM>(color,x);
 		}
-	      return;
+		  return;
 	}
 
 	if(!opaque)
@@ -1928,34 +1928,34 @@ int GPU_ChangeGraphicsCore(int coreid)
 
    // Make sure the old core is freed
    if (GFXCore)
-      GFXCore->DeInit();
+	  GFXCore->DeInit();
 
    // So which core do we want?
    if (coreid == GFXCORE_DEFAULT)
-      coreid = 0; // Assume we want the first one
+	  coreid = 0; // Assume we want the first one
 
    // Go through core list and find the id
    for (i = 0; GFXCoreList[i] != NULL; i++)
    {
-      if (GFXCoreList[i]->id == coreid)
-      {
-         // Set to current core
-         GFXCore = GFXCoreList[i];
-         break;
-      }
+	  if (GFXCoreList[i]->id == coreid)
+	  {
+		 // Set to current core
+		 GFXCore = GFXCoreList[i];
+		 break;
+	  }
    }
 
    if (GFXCore == NULL)
    {
-      GFXCore = &GFXDummy;
-      return -1;
+	  GFXCore = &GFXDummy;
+	  return -1;
    }
 
    if (GFXCore->Init() == -1)
    {
-      // Since it failed, instead of it being fatal, we'll just use the dummy
-      // core instead
-      GFXCore = &GFXDummy;
+	  // Since it failed, instead of it being fatal, we'll just use the dummy
+	  // core instead
+	  GFXCore = &GFXDummy;
    }
 
    return 0;
@@ -2381,21 +2381,25 @@ template<bool SKIP> static void GPU_RenderLine_DispCapture(u16 l)
 
 static INLINE void GPU_RenderLine_MasterBrightness(NDS_Screen * screen, u16 l)
 {
+	if (!screen || !screen->gpu) return;
 	GPU * gpu = screen->gpu;
 
-	u8 * dst =  GPU_screen + (screen->offset + l) * 512;
-	u16 i16;
+	u8 * dst = GPU_screen + (screen->offset + l) * 512;
+	if (!dst) return;
 
-	//isn't it odd that we can set uselessly high factors here?
-	//factors above 16 change nothing. curious.
+	// clamp factor to valid table range 0..16
 	int factor = gpu->MasterBrightFactor;
-	if(factor==0) return;
-	if(factor>16) factor=16;
+	if (factor == 0) return;
+	if (factor < 0) factor = 0;
+	if (factor > 16) factor = 16;
+	const int safeFactor = factor;
 
+	// Apply final brightness adjust (MASTER_BRIGHT)
+	// http://nocash.emubase.de/gbatek.htm#dsvideo (Under MASTER_BRIGHTNESS)
 
-	//Apply final brightness adjust (MASTER_BRIGHT)
-	//http://nocash.emubase.de/gbatek.htm#dsvideo (Under MASTER_BRIGHTNESS)
-	
+	const size_t pixel_count = 256;
+	u16 *pixels = reinterpret_cast<u16*>(dst);
+
 	switch (gpu->MasterBrightMode)
 	{
 		// Disabled
@@ -2405,18 +2409,20 @@ static INLINE void GPU_RenderLine_MasterBrightness(NDS_Screen * screen, u16 l)
 		// Bright up
 		case 1:
 		{
-			if(factor != 16)
+			if (safeFactor != 16)
 			{
-				for(i16 = 0; i16 < 256; ++i16)
+				for (size_t i = 0; i < pixel_count; ++i)
 				{
-					((u16*)dst)[i16] = fadeInColors[factor][((u16*)dst)[i16]&0x7FFF];
+					u16 pix = pixels[i];
+					size_t idx = static_cast<size_t>(pix & 0x7FFF); // guaranteed < 0x8000
+					pixels[i] = fadeInColors[safeFactor][idx];
 				}
 			}
 			else
 			{
 				// all white (optimization)
-				for(i16 = 0; i16 < 256; ++i16)
-					((u16*)dst)[i16] = 0x7FFF;
+				for (size_t i = 0; i < pixel_count; ++i)
+					pixels[i] = 0x7FFF;
 			}
 			break;
 		}
@@ -2424,11 +2430,13 @@ static INLINE void GPU_RenderLine_MasterBrightness(NDS_Screen * screen, u16 l)
 		// Bright down
 		case 2:
 		{
-			if(factor != 16)
+			if (safeFactor != 16)
 			{
-				for(i16 = 0; i16 < 256; ++i16)
+				for (size_t i = 0; i < pixel_count; ++i)
 				{
-					((u16*)dst)[i16] = fadeOutColors[factor][((u16*)dst)[i16]&0x7FFF];
+					u16 pix = pixels[i];
+					size_t idx = static_cast<size_t>(pix & 0x7FFF); // guaranteed < 0x8000
+					pixels[i] = fadeOutColors[safeFactor][idx];
 				}
 			}
 			else
@@ -2442,8 +2450,7 @@ static INLINE void GPU_RenderLine_MasterBrightness(NDS_Screen * screen, u16 l)
 		// Reserved
 		case 3:
 			break;
-	 }
-
+	}
 }
 
 template<int WIN_NUM>
@@ -2489,7 +2496,15 @@ void GPU::update_winh(int WIN_NUM)
 	if(WIN_NUM==0 && !WIN0_ENABLED) return;
 	if(WIN_NUM==1 && !WIN1_ENABLED) return;
 
-	need_update_winh[WIN_NUM] = false;
+	// inside GPU::update_winh(int WIN_NUM)
+	// Guard the index to avoid out-of-bounds writes
+	if (WIN_NUM >= 0 && WIN_NUM < static_cast<int>(sizeof(need_update_winh)/sizeof(need_update_winh[0]))) {
+		need_update_winh[WIN_NUM] = false;
+	} else {
+		// Unexpected WIN_NUM: ignore or log for debugging
+		// debug_printf("GPU::update_winh: invalid WIN_NUM=%d\n", WIN_NUM);
+	}
+
 	u16 startX,endX;
 
 	if(WIN_NUM==0)

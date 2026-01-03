@@ -1,21 +1,21 @@
 /*  Copyright (C) 2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifndef EMUFILE_H
@@ -103,7 +103,15 @@ public:
 		if(ownvec) delete vec;
 	}
 
-	u8* buf() { return &(*vec)[0]; }
+	u8* buf() {
+		if (vec->empty()) {
+			// ensure there is at least one element so &(*vec)[0] is valid
+			vec->resize(1);
+			// keep len consistent with resize if needed
+			if (len == 0) len = 1;
+		}
+		return &(*vec)[0];
+	}
 
 	std::vector<u8>* get_vec() { return vec; };
 
@@ -112,22 +120,32 @@ public:
 	virtual int fprintf(const char *format, ...) {
 		va_list argptr;
 		va_start(argptr, format);
-		
-		//we dont generate straight into the buffer because it will null terminate (one more byte than we want)
-		int amt = vsnprintf(0,0,format,argptr);
-		char* tempbuf = new char[amt+1];
-		vsprintf(tempbuf,format,argptr);
-		fwrite(tempbuf,amt);
+
+		// Determine required size safely using a copy of the va_list
+		va_list argcopy;
+		va_copy(argcopy, argptr);
+		int amt = vsnprintf(nullptr, 0, format, argcopy);
+		va_end(argcopy);
+
+		if (amt < 0) {
+			va_end(argptr);
+			return -1;
+		}
+
+		char* tempbuf = new char[amt + 1];
+		vsnprintf(tempbuf, amt + 1, format, argptr);
+		// write exactly amt bytes (no terminating NUL)
+		fwrite(tempbuf, (size_t)amt);
 		delete[] tempbuf;
 		va_end(argptr);
 		return amt;
 	};
 
 	virtual int fgetc() {
-		u8 temp;
-		if(_fread(&temp,1) != 1)
+		u8 temp = 0;
+		if (_fread(&temp, 1) != 1)
 			return EOF;
-		else return temp;
+		return temp;
 	}
 	virtual int fputc(int c) {
 		u8 temp = (u8)c;

@@ -1,22 +1,22 @@
 /*  
 	Copyright (C) 2006-2007 shash
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <stdio.h>
@@ -173,26 +173,45 @@ void MatrixStackInit(MatrixStack *stack){
 	stack->position = 0;
 }
 
-void MatrixStackSetMaxSize (MatrixStack *stack, int size){
+void MatrixStackSetMaxSize(MatrixStack *stack, int size)
+{
+	// store requested size (internal representation uses +1)
 	stack->size = (size + 1);
 
+	// free previous storage if any and mark pointer null
 	if (stack->matrix != NULL) {
-		free (stack->matrix);
+		free(stack->matrix);
+		stack->matrix = nullptr;
 	}
+
 	s32 stackSize = stack->size;
+	size_t allocCount = (size_t)stackSize << 4; // number of floats
 
-	stack->matrix = (float*) malloc ((stackSize<<4)*sizeof(float));
-
-	for (s32 i = 0; i < stackSize; ++i){
-		MatrixInit (&stack->matrix[i<<4]);
+	// allocate storage and check for failure
+	stack->matrix = (float*)malloc(allocCount * sizeof(float));
+	if (!stack->matrix) {
+		// allocation failed: reset state to safe defaults
+		stack->size = 0;
+		stack->position = 0;
+		return;
 	}
 
+	// initialize each matrix slot
+	for (s32 i = 0; i < stackSize; ++i) {
+		MatrixInit(&stack->matrix[i << 4]);
+	}
+
+	// internal size uses one less than stored value
 	--stack->size;
 }
 
-
-MatrixStack::MatrixStack(int size){
-	MatrixStackSetMaxSize(this,size);
+MatrixStack::MatrixStack(int size)
+	: matrix(nullptr)
+	, position(0)
+	, size(0)
+{
+	// Safe: members are initialized before helper reads them
+	MatrixStackSetMaxSize(this, size);
 }
 
 void MatrixStackSetStackPosition (MatrixStack *stack, int pos){

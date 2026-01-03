@@ -1,23 +1,23 @@
 /*  Copyright (C) 2006 thoduv
-    Copyright (C) 2006-2007 Theo Berkau
-    Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2006-2007 Theo Berkau
+	Copyright (C) 2008-2009 DeSmuME team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <stdlib.h>
@@ -138,8 +138,8 @@ u8 *mc_alloc(memory_chip_t *mc, u32 size)
 
 void mc_free(memory_chip_t *mc)
 {
-    if(mc->data) delete[] mc->data;
-    mc_init(mc, 0);
+	if(mc->data) delete[] mc->data;
+	mc_init(mc, 0);
 }
 
 void fw_reset_com(memory_chip_t *mc)
@@ -611,7 +611,6 @@ static int no_gba_unpackSAV(void *in_buf, u32 fsize, void *out_buf, u32 &size)
 	u32 dst_pos = 0;
 	u8	cc = 0;
 	u32	size_unpacked = 0;
-	u32	size_packed = 0;
 	u32	compressMethod = 0;
 
 	if (fsize < 0x50) return (1);
@@ -642,7 +641,6 @@ static int no_gba_unpackSAV(void *in_buf, u32 fsize, void *out_buf, u32 &size)
 
 	if (compressMethod == 1)	// packed (method 1)
 	{
-		size_packed = *((u32*)(src+0x48));
 		size_unpacked = *((u32*)(src+0x4C));
 
 		src_pos = 0x50;

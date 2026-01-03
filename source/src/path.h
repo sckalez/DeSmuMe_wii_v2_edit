@@ -1,21 +1,21 @@
 /*
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <string>
 
@@ -136,7 +136,8 @@ public:
 
 	void ReadPathSettings()
 	{
-		if( ( strcmp(pathToModule, "") == 0) || !pathToModule)
+		// If pathToModule is empty, try to load it
+		if (pathToModule[0] == '\0')
 			LoadModulePath();
 
 		ReadKey(pathToRoms, ROMKEY);
@@ -148,74 +149,79 @@ public:
 		ReadKey(pathToSounds, SOUNDKEY);
 		ReadKey(pathToFirmware, FIRMWAREKEY);
 		ReadKey(pathToLua, LUAKEY);
+
 #ifdef WIN32
 		GetPrivateProfileString(SECTION, FORMATKEY, "%f_%s_%r", screenshotFormat, MAX_FORMAT, IniName);
-		savelastromvisit	= GetPrivateProfileBool(SECTION, LASTVISITKEY, true, IniName);
-		currentimageformat	= (ImageFormat)GetPrivateProfileInt(SECTION, DEFAULTFORMATKEY, PNG, IniName);
+		savelastromvisit    = GetPrivateProfileBool(SECTION, LASTVISITKEY, true, IniName);
+		currentimageformat  = (ImageFormat)GetPrivateProfileInt(SECTION, DEFAULTFORMATKEY, PNG, IniName);
 #endif
-	/*
-		needsSaving		= GetPrivateProfileInt(SECTION, NEEDSSAVINGKEY, TRUE, IniName);
-		if(needsSaving)
-		{
-			needsSaving = FALSE;
-			WritePathSettings();
-		}*/
 	}
 
 	void SwitchPath(Action action, KnownPath path, char * buffer)
 	{
-		char *pathToCopy = 0;
+		char *pathToCopy = nullptr;
 		switch(path)
 		{
-		case ROMS:
-			pathToCopy = pathToRoms;
-			break;
-		case BATTERY:
-			pathToCopy = pathToBattery;
-			break;
-		case STATES:
-			pathToCopy = pathToStates;
-			break;
-		case SCREENSHOTS:
-			pathToCopy = pathToScreenshots;
-			break;
-		case AVI_FILES:
-			pathToCopy = pathToAviFiles;
-			break;
-		case CHEATS:
-			pathToCopy = pathToCheats;
-			break;
-		case SOUNDS:
-			pathToCopy = pathToSounds;
-			break;
-		case FIRMWARE:
-			pathToCopy = pathToFirmware;
-			break;
-		case MODULE:
-			pathToCopy = pathToModule;
-			break;
+		case ROMS:        pathToCopy = pathToRoms; break;
+		case BATTERY:     pathToCopy = pathToBattery; break;
+		case STATES:      pathToCopy = pathToStates; break;
+		case SCREENSHOTS: pathToCopy = pathToScreenshots; break;
+		case AVI_FILES:   pathToCopy = pathToAviFiles; break;
+		case CHEATS:      pathToCopy = pathToCheats; break;
+		case SOUNDS:      pathToCopy = pathToSounds; break;
+		case FIRMWARE:    pathToCopy = pathToFirmware; break;
+		case MODULE:      pathToCopy = pathToModule; break;
+		default:          pathToCopy = pathToModule; break;
 		}
 
-		if(action == GET)
+		if (action == GET)
 		{
-			strncpy(buffer, pathToCopy, MAX_PATH);
-			int len = strlen(buffer)-1;
+			// Copy safely and guarantee NUL termination
+			size_t copy_len = (MAX_PATH > 0) ? (MAX_PATH - 1) : 0;
+			if (copy_len > 0) {
+				memcpy(buffer, pathToCopy, std::min<size_t>(strlen(pathToCopy), copy_len));
+				buffer[std::min<size_t>(strlen(pathToCopy), copy_len)] = '\0';
+			} else {
+				if (MAX_PATH > 0) buffer[0] = '\0';
+			}
+
+			// Append a trailing separator if missing, using remaining space
+			size_t len = strlen(buffer);
 #ifdef WIN32
-			if(buffer[len] != '\\') 
-				strcat(buffer, "\\");
+			const char sep = '\\';
 #else
-			if(buffer[len] != '/') 
-				strcat(buffer, "/");
+			const char sep = '/';
 #endif
-
+			if (len == 0) {
+				// if empty, add separator only if it fits
+				if (len + 1 < MAX_PATH) {
+					buffer[len] = sep;
+					buffer[len + 1] = '\0';
+				}
+			} else if (buffer[len - 1] != sep) {
+				if (len + 1 < MAX_PATH) {
+					buffer[len] = sep;
+					buffer[len + 1] = '\0';
+				}
+			}
 		}
-		else if(action == SET)
+		else if (action == SET)
 		{
-			int len = strlen(buffer)-1;
-			if(buffer[len] == '\\') 
-				buffer[len] = '\0';
+			// sanitize trailing separator if present
+			size_t len = strlen(buffer);
+			if (len > 0 && (buffer[len - 1] == '\\' || buffer[len - 1] == '/')) {
+				buffer[len - 1] = '\0';
+				--len;
+			}
 
-			strncpy(pathToCopy, buffer, MAX_PATH);
+			// copy into the destination pathToCopy safely and NUL-terminate
+			size_t copy_len = (MAX_PATH > 0) ? (MAX_PATH - 1) : 0;
+			if (copy_len > 0) {
+				memcpy(pathToCopy, buffer, std::min<size_t>(len, copy_len));
+				pathToCopy[std::min<size_t>(len, copy_len)] = '\0';
+			} else {
+				if (MAX_PATH > 0) pathToCopy[0] = '\0';
+			}
 		}
 	}
 

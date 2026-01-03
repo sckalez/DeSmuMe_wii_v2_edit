@@ -1,25 +1,25 @@
 /*  Copyright (C) 2006 yopyop
-    Copyright (C) 2006 Theo Berkau
-    Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2006 Theo Berkau
+	Copyright (C) 2008-2009 DeSmuME team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    Ideas borrowed from Stephane Dallongeville's SCSP core
+	Ideas borrowed from Stephane Dallongeville's SCSP core
 	
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #define _USE_MATH_DEFINES
@@ -398,7 +398,12 @@ void SPU_struct::KeyOn(int channel)
 	default: break;
 	}
 
-	thischan.double_totlength_shifted = (double)(thischan.totlength << format_shift[thischan.format]);
+	{
+		unsigned fmt = static_cast<unsigned>(thischan.format);
+		if (fmt >= (sizeof(format_shift) / sizeof(format_shift[0]))) fmt = 0;
+		int shift = format_shift[fmt];
+		thischan.double_totlength_shifted = static_cast<double>(thischan.totlength << shift);
+	}
 
 	if(thischan.format != 3)
 	{
@@ -689,27 +694,27 @@ template<SPUInterpolationMode INTERPOLATE_MODE> static FORCEINLINE void FetchADP
 	// No sense decoding, just return the last sample
 	if (chan->lastsampcnt != sputrunc(chan->sampcnt)){
 
-	    const u32 endExclusive = sputrunc(chan->sampcnt+1);
-	    for (u32 i = chan->lastsampcnt+1; i < endExclusive; i++)
-	    {
-	    	const u32 shift = (i&1)<<2;
-	    	const u32 data4bit = (((u32)chan->buf8[i >> 1]) >> shift);
+		const u32 endExclusive = sputrunc(chan->sampcnt+1);
+		for (u32 i = chan->lastsampcnt+1; i < endExclusive; i++)
+		{
+			const u32 shift = (i&1)<<2;
+			const u32 data4bit = (((u32)chan->buf8[i >> 1]) >> shift);
 
-	    	const s32 diff = precalcdifftbl[chan->index][data4bit & 0xF];
-	    	chan->index = precalcindextbl[chan->index][data4bit & 0x7];
+			const s32 diff = precalcdifftbl[chan->index][data4bit & 0xF];
+			chan->index = precalcindextbl[chan->index][data4bit & 0x7];
 
-	    	chan->pcm16b_last = chan->pcm16b;
-	    	chan->pcm16b = MinMax(chan->pcm16b+diff, -0x8000, 0x7FFF);
+			chan->pcm16b_last = chan->pcm16b;
+			chan->pcm16b = MinMax(chan->pcm16b+diff, -0x8000, 0x7FFF);
 
 			if(i == ((u32)(chan->loopstart)<<3)) {
 				if(chan->loop_index != K_ADPCM_LOOPING_RECOVERY_INDEX) printf("over-snagging\n");
 				chan->loop_pcm16b = chan->pcm16b;
 				chan->loop_index = chan->index;
 			}
-	    }
+		}
 
-	    chan->lastsampcnt = sputrunc(chan->sampcnt);
-    }
+		chan->lastsampcnt = sputrunc(chan->sampcnt);
+	}
 
 	if(INTERPOLATE_MODE != SPUInterpolation_None)
 		*data = Interpolate<INTERPOLATE_MODE>((s32)chan->pcm16b_last,(s32)chan->pcm16b,chan->sampcnt);

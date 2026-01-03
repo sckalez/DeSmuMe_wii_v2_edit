@@ -21,7 +21,7 @@ bool Nand::Initialized = false;
 int Nand::Startup() 
 {
 	if (Initialized) return 0;
-    int ret = ISFS_Initialize();
+	int ret = ISFS_Initialize();
 	Initialized = (ret == ISFS_OK);
 	return ret;
 }
@@ -36,12 +36,12 @@ void Nand::Shutdown()
 int Nand::CreateDir(u64 titleId) 
 {
 	Startup();
-    char dirpath[ISFS_MAXPATH];
+	char dirpath[ISFS_MAXPATH];
 
-    /* Generate dirpath */
-    sprintf(dirpath, BASE_PATH "/%08x", (u32)(titleId & 0xFFFFFFFF));
+	/* Generate dirpath */
+	sprintf(dirpath, BASE_PATH "/%08x", (u32)(titleId & 0xFFFFFFFF));
 
-    /* Create directory */
+	/* Create directory */
 	return CreateDir(dirpath);
 }
 
@@ -69,15 +69,15 @@ int Nand::CreateDir(const char* path)
 int Nand::CreateFile(u64 titleId, const char *filename) 
 {
 	Startup();
-    char filepath[ISFS_MAXPATH];
+	char filepath[ISFS_MAXPATH];
 
-    /* Generate filepath */
-    sprintf(filepath, BASE_PATH "/%08x/%s", (u32)(titleId & 0xFFFFFFFF), filename);
+	/* Generate filepath */
+	sprintf(filepath, BASE_PATH "/%08x/%s", (u32)(titleId & 0xFFFFFFFF), filename);
 
-    /* Create file */
+	/* Create file */
 	s32 ret = 0;
 	
-    ret = ISFS_CreateFile(filepath, 0, ISFS_OPEN_RW, ISFS_OPEN_RW, ISFS_OPEN_RW);
+	ret = ISFS_CreateFile(filepath, 0, ISFS_OPEN_RW, ISFS_OPEN_RW, ISFS_OPEN_RW);
 	
 	if (ret <= -1)
 	   return ret;
@@ -106,12 +106,12 @@ int Nand::CreateFile(const char *filepath, u8 attributes, u8 ownerPerm, u8 group
 int Nand::OpenFile(u64 titleId, const char *filename, u8 mode) 
 {
 	Startup();
-    char filepath[ISFS_MAXPATH];
+	char filepath[ISFS_MAXPATH];
 
-    /* Generate filepath */
-    sprintf(filepath, BASE_PATH "/%08x/%s", (u32)(titleId & 0xFFFFFFFF), filename);
+	/* Generate filepath */
+	sprintf(filepath, BASE_PATH "/%08x/%s", (u32)(titleId & 0xFFFFFFFF), filename);
 
-    /* Open file */
+	/* Open file */
 	return ISFS_Open(filepath, mode);
 }
 
@@ -142,8 +142,8 @@ int Nand::Close(int fp)
 int Nand::Read(int fp, u8 *buffer, u32 length) 
 {
 	Startup();
-    /* Read file */
-    return ISFS_Read(fp, buffer, length);
+	/* Read file */
+	return ISFS_Read(fp, buffer, length);
 }
 
 int Nand::Read(const char* filepath, u8 **buffer)
@@ -180,7 +180,7 @@ int Nand::Write(int file, u8 *buffer, u32 length)
 {
 	Startup();
 	
-    return ISFS_Write(file, buffer, length);
+	return ISFS_Write(file, buffer, length);
 }
 
 int Nand::Write(const char *filepath, u8 *buffer, u32 length)
@@ -213,56 +213,68 @@ int Nand::Write(const char *filepath, u8 *buffer, u32 length)
 	return ret;
 }
 
-int Nand::RemoveDir(u64 titleId) 
+int Nand::RemoveDir(u64 titleId)
 {
 	Startup();
-    char *dirlist = NULL;
 
-    char dirpath[ISFS_MAXPATH], filepath[ISFS_MAXPATH];
-    u32 cnt, idx, nb_files;
-    int ret;
+	char *dirlist = NULL;
+	char dirpath[ISFS_MAXPATH];
+	char filepath[ISFS_MAXPATH];
+	u32 cnt = 0, idx = 0, nb_files = 0;
+	int ret = 0;
 
-    /* Generate dirpath */
-    sprintf(dirpath, BASE_PATH "/%08x", (u32)(titleId & 0xFFFFFFFF));
+	/* Generate dirpath safely */
+	int n = snprintf(dirpath, sizeof(dirpath), BASE_PATH "/%08x", (u32)(titleId & 0xFFFFFFFF));
+	if (n < 0 || (size_t)n >= sizeof(dirpath)) return -1;
 
-    /* Retrieve number of files */
-    ret = ISFS_ReadDir(dirpath, NULL, &nb_files);
-    if (ret < 0) return ret;
+	/* Retrieve number of files */
+	ret = ISFS_ReadDir(dirpath, NULL, &nb_files);
+	if (ret < 0) return ret;
 
-    /* There are files inside the directory */
-    if (nb_files) 
+	/* There are files inside the directory */
+	if (nb_files)
 	{
-        /* Allocate memory */
-		dirlist = (char*)Tools::AllocateMemory(ISFS_MAXPATH * nb_files);
-        if (!dirlist) return -1;
+		/* Prevent overflow when computing allocation size */
+		size_t alloc_size = (size_t)ISFS_MAXPATH * (size_t)nb_files;
+		if (nb_files == 0 || alloc_size / ISFS_MAXPATH != (size_t)nb_files) return -1;
 
-        /* Retrieve filelist */
-        ret = ISFS_ReadDir(dirpath, dirlist, &nb_files);
-        if (ret < 0) goto out;
+		/* Allocate memory */
+		dirlist = (char*)Tools::AllocateMemory(alloc_size);
+		if (!dirlist) return -1;
 
-        for (cnt = idx = 0; cnt < nb_files; cnt++) 
+		/* Retrieve filelist */
+		ret = ISFS_ReadDir(dirpath, dirlist, &nb_files);
+		if (ret < 0) goto out;
+
+		for (cnt = idx = 0; cnt < nb_files; cnt++)
 		{
-            char *ptr = dirlist + idx;
+			char *ptr = dirlist + idx;
+			size_t name_len = strlen(ptr);
 
-            /* Generate filepath */
-            sprintf(filepath, "%s/%s", dirpath, ptr);
+			/* Ensure we won't read past the allocated buffer */
+			if ((size_t)idx + name_len + 1 > alloc_size) { ret = -1; goto out; }
 
-            /* Delete file */
-            ret = ISFS_Delete(filepath);
-            if (ret < 0) goto out;
+			/* Generate filepath safely */
+			int m = snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, ptr);
+			if (m < 0 || (size_t)m >= sizeof(filepath)) { ret = -1; goto out; }
 
-            /* Move to next entry */
-            idx += strlen(ptr) + 1;
-        }
-    }
+			/* Delete file */
+			ret = ISFS_Delete(filepath);
+			if (ret < 0) goto out;
 
-    /* Delete directory */
-    ret = ISFS_Delete(dirpath);
+			/* Move to next entry and guard against overflow */
+			idx += (u32)(name_len + 1);
+			if ((size_t)idx > alloc_size) { ret = -1; goto out; }
+		}
+	}
+
+	/* Delete directory */
+	ret = ISFS_Delete(dirpath);
 
 out:
-    /* Free memory */
-	delete dirlist; dirlist = NULL;
-    return ret;
+	/* Free memory (Tools::AllocateMemory returns malloc-style memory) */
+	if (dirlist) { free(dirlist); dirlist = NULL; }
+	return ret;
 }
 
 int Nand::Delete(const char* filepath)
@@ -342,7 +354,7 @@ int Nand::CopyFile(const char *from, const char *to)
 	
 	ISFS_GetAttr(from, &ownerID, &groupID, &attributes, &ownerperm, &groupperm, &otherperm);
 
-    ISFS_SetAttr(to, ownerID, groupID, attributes, ownerperm, groupperm, otherperm);
+	ISFS_SetAttr(to, ownerID, groupID, attributes, ownerperm, groupperm, otherperm);
 
 	int size = Nand::Read(from, &buffer);
 	if (size < 0) {ret = size; goto end;}

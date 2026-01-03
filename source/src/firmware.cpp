@@ -1,21 +1,21 @@
 /*	Copyright (C) 2009 DeSmuME Team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 //Need to convert INFO's into gecko printf()s
@@ -333,7 +333,7 @@ bool CFIRMWARE::load()
 	u32 size = 0;
 	u8	*data = NULL;
 	u16 shift1 = 0, shift2 = 0, shift3 = 0, shift4 = 0;
-	u32 part1addr = 0, part2addr = 0, part3addr = 0, part4addr = 0, part5addr = 0;
+	u32 part1addr = 0, part2addr = 0;
 	u32 part1ram = 0, part2ram = 0;
 	
 	u32	src = 0;
@@ -398,9 +398,6 @@ bool CFIRMWARE::load()
 	part1ram = (0x02800000 - (header.part1_ram_boot9_addr << (2+shift2)));
 	part2addr = (header.part2_rom_boot7_addr << (2+shift3));
 	part2ram = (0x03810000 - (header.part2_ram_boot7_addr << (2+shift4)));
-	part3addr = (header.part3_rom_gui9_addr << 3);
-	part4addr = (header.part4_rom_wifi7_addr << 3);
-	part5addr = (header.part5_data_gfx_addr << 3);
 
 	ARM9bootAddr = part1ram;
 	ARM7bootAddr = part2ram;

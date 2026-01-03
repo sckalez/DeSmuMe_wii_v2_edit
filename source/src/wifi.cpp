@@ -1,22 +1,22 @@
 /*  Copyright (C) 2007 Tim Seidel
-    Copyright (C) 2008-2009 DeSmuME team
-    Copyright (C) 2012 DeSmuMEWii team
+	Copyright (C) 2008-2009 DeSmuME team
+	Copyright (C) 2012 DeSmuMEWii team
 
-    This file is part of DeSmuMEWii
+	This file is part of DeSmuMEWii
 
-    DeSmuMEWii is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuMEWii is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuMEWii is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuMEWii is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuMEWii; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuMEWii; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 //--DCN: Yar! I've gone an' cut up all me files, a'lookin' fer
@@ -272,11 +272,11 @@ void Adhoc_SendPacket(u8* packet, u32 len);
 void Adhoc_usTrigger();
 
 WifiComInterface Adhoc = {
-        Adhoc_Init,
-        Adhoc_DeInit,
-        Adhoc_Reset,
-        Adhoc_SendPacket,
-        Adhoc_usTrigger
+		Adhoc_Init,
+		Adhoc_DeInit,
+		Adhoc_Reset,
+		Adhoc_SendPacket,
+		Adhoc_usTrigger
 };
 #endif
 
@@ -393,14 +393,14 @@ u32 WIFI_CRC32Table[256];
 
 static u32 reflect(u32 ref, char ch)
 {
-    u32 value = 0;
+	u32 value = 0;
 
-    for(int i = 1; i < (ch + 1); i++)
-    {
-        if (ref & 1)
-            value |= 1 << (ch - i);
-        ref >>= 1;
-    } 
+	for(int i = 1; i < (ch + 1); i++)
+	{
+		if (ref & 1)
+			value |= 1 << (ch - i);
+		ref >>= 1;
+	} 
 	
 	return value;
 }
@@ -410,7 +410,7 @@ static u32 WIFI_calcCRC32(u8 *data, int len)
 	u32 crc = 0xFFFFFFFF;
 
 	while(len--)
-        crc = (crc >> 8) ^ WIFI_CRC32Table[(crc & 0xFF) ^ *data++];
+		crc = (crc >> 8) ^ WIFI_CRC32Table[(crc & 0xFF) ^ *data++];
 
 	return (crc ^ 0xFFFFFFFF);
 }
@@ -424,12 +424,12 @@ static void WIFI_initCRC32Table()
 	u32 polynomial = 0x04C11DB7;
 
 	for(int i = 0; i < 0x100; i++)
-    {
-        WIFI_CRC32Table[i] = reflect(i, 8) << 24;
-        for(int j = 0; j < 8; j++)
-            WIFI_CRC32Table[i] = (WIFI_CRC32Table[i] << 1) ^ (WIFI_CRC32Table[i] & (1 << 31) ? polynomial : 0);
-        WIFI_CRC32Table[i] = reflect(WIFI_CRC32Table[i],  32);
-    }
+	{
+		WIFI_CRC32Table[i] = reflect(i, 8) << 24;
+		for(int j = 0; j < 8; j++)
+			WIFI_CRC32Table[i] = (WIFI_CRC32Table[i] << 1) ^ (WIFI_CRC32Table[i] & (1 << 31) ? polynomial : 0);
+		WIFI_CRC32Table[i] = reflect(WIFI_CRC32Table[i],  32);
+	}
 }
 
 /*******************************************************************************
@@ -525,7 +525,7 @@ void WIFI_setRF_DATA(u16 val, u8 part)
 //	printf("write rf data %04X %s part\n", val, (part?"high":"low"));
 	if (!wifiMac.rfIOStatus.bits.busy)
 	{
-        rfIOData_t *rfreg = (rfIOData_t *)&wifiMac.RF;
+		rfIOData_t *rfreg = (rfIOData_t *)&wifiMac.RF;
 		switch (wifiMac.rfIOCnt.bits.readOperation)
 		{
 			case 1: /* read from RF chip */
@@ -889,7 +889,14 @@ static void WIFI_TXStart(u8 slot)
 
 		// Calculate and set FCS
 		u32 crc32 = WIFI_calcCRC32((u8*)&wifiMac.circularBuffer[address + 6], txLen - 4);
-		*(u32*)&wifiMac.circularBuffer[address + 6 + ((txLen-4) >> 1)] = crc32;
+		{
+			// write 32-bit CRC into the circular buffer at the correct byte offset
+			size_t wordIndex = address + 6 + ((txLen - 4) >> 1);
+			u32 crc = crc32;
+			// circularBuffer is u16[], so compute byte pointer then memcpy
+			u8 *bytePtr = reinterpret_cast<u8*>(&wifiMac.circularBuffer[wordIndex]);
+			memcpy(bytePtr, &crc, sizeof(crc));
+		}
 
 		WIFI_triggerIRQ(WIFI_IRQ_TXSTART) ;
 
@@ -962,7 +969,14 @@ static void WIFI_ExtraTXStart()
 
 		// Calculate and set FCS
 		u32 crc32 = WIFI_calcCRC32((u8*)&wifiMac.circularBuffer[address + 6], txLen - 4);
-		*(u32*)&wifiMac.circularBuffer[address + 6 + ((txLen-4) >> 1)] = crc32;
+		{
+			// write 32-bit CRC into the circular buffer at the correct byte offset
+			size_t wordIndex = address + 6 + ((txLen - 4) >> 1);
+			u32 crc = crc32;
+			// circularBuffer is u16[], so compute byte pointer then memcpy
+			u8 *bytePtr = reinterpret_cast<u8*>(&wifiMac.circularBuffer[wordIndex]);
+			memcpy(bytePtr, &crc, sizeof(crc));
+		}
 
 		// Note: Extra transfers trigger two TX start interrupts according to GBATek
 		WIFI_triggerIRQ(WIFI_IRQ_TXSTART);
@@ -1027,11 +1041,24 @@ static void WIFI_BeaconTXStart()
 		wifiMac.circularBuffer[address + 6 + 11] = wifiMac.TXSeqNo << 4;
 
 		// Set timestamp
-		*(u64*)&wifiMac.circularBuffer[address + 6 + 12] = wifiMac.usec;
+		{
+			// write 64-bit timestamp safely
+			size_t wordIndex = address + 6 + 12;
+			u64 usec = wifiMac.usec;
+			u8 *bytePtr = reinterpret_cast<u8*>(&wifiMac.circularBuffer[wordIndex]);
+			memcpy(bytePtr, &usec, sizeof(usec));
+		}
 
 		// Calculate and set FCS
 		u32 crc32 = WIFI_calcCRC32((u8*)&wifiMac.circularBuffer[address + 6], txLen - 4);
-		*(u32*)&wifiMac.circularBuffer[address + 6 + ((txLen-4) >> 1)] = crc32;
+		{
+			// write 32-bit CRC into the circular buffer at the correct byte offset
+			size_t wordIndex = address + 6 + ((txLen - 4) >> 1);
+			u32 crc = crc32;
+			// circularBuffer is u16[], so compute byte pointer then memcpy
+			u8 *bytePtr = reinterpret_cast<u8*>(&wifiMac.circularBuffer[wordIndex]);
+			memcpy(bytePtr, &crc, sizeof(crc));
+		}
 
 		WIFI_triggerIRQ(WIFI_IRQ_TXSTART);
 		if(wifiCom)
@@ -1065,7 +1092,7 @@ void WIFI_write16(u32 address, u16 val)
 	{
 		/* access to the circular buffer */
 		address &= 0x1FFF ;
-        wifiMac.circularBuffer[address >> 1] = val ;
+		wifiMac.circularBuffer[address >> 1] = val ;
 		return ;
 	}
 	if (!(address & 0x00007000)) action = TRUE ;
@@ -1238,7 +1265,7 @@ void WIFI_write16(u32 address, u16 val)
 			if (action)
 			{
 				/* move to next hword */
-                wifiMac.CircBufWriteAddress+=2 ;
+				wifiMac.CircBufWriteAddress+=2 ;
 				if (wifiMac.CircBufWriteAddress == wifiMac.CircBufWrEnd)
 				{
 					/* on end of buffer, add skip hwords to it */
@@ -1371,10 +1398,10 @@ void WIFI_write16(u32 address, u16 val)
 			wifiMac.BeaconCount2 = val;
 			break;
 		case REG_WIFI_BBSIOCNT:
-            WIFI_setBB_CNT(val) ;
+			WIFI_setBB_CNT(val) ;
 			break ;
 		case REG_WIFI_BBSIOWRITE:
-            WIFI_setBB_DATA(val&0xFF) ;
+			WIFI_setBB_DATA(val&0xFF) ;
 			break ;
 		case REG_WIFI_RXBUF_COUNT:
 			wifiMac.RXBufCount = val & 0x0FFF ;
@@ -1447,7 +1474,7 @@ u16 WIFI_read16(u32 address)
 		//if ((address >= 0x04804BFC) && (address < 0x04804BFC + 12 + 0x70))
 		//	printf("read inside received beacon at %08X (offset %08X)\n", address, address-0x04804BFC);
 
-        return wifiMac.circularBuffer[(address & 0x1FFF) >> 1] ;
+		return wifiMac.circularBuffer[(address & 0x1FFF) >> 1] ;
 	}
 	if (!(address & 0x00007000)) action = TRUE ;
 	/* mirrors => register address */
@@ -1805,27 +1832,46 @@ void Adhoc_Reset()
 void Adhoc_SendPacket(u8* packet, u32 len)
 {
 #if 1
-	WIFI_LOG(2, "Ad-hoc: sending a packet of %i bytes, frame control: %04X\n", len, *(u16*)&packet[0]);
+	if (!packet || len == 0) {
+		WIFI_LOG(2, "Ad-hoc: nothing to send (null packet or zero length)\n");
+		return;
+	}
 
-	u32 frameLen = sizeof(Adhoc_FrameHeader) + len;
+	// Read frame control safely (avoid strict-aliasing)
+	u16 frameControl = 0;
+	memcpy(&frameControl, packet, sizeof(frameControl));
+	WIFI_LOG(2, "Ad-hoc: sending a packet of %u bytes, frame control: %04X\n", (unsigned)len, frameControl);
 
-	u8* frame = new u8[frameLen];
-	u8* ptr = frame;
+	// Build frame length and guard against overflow
+	size_t headerSize = sizeof(Adhoc_FrameHeader);
+	size_t frameLen = headerSize + (size_t)len;
+	if (frameLen < headerSize) { // overflow check (very defensive)
+		WIFI_LOG(1, "Ad-hoc: frame length overflow\n");
+		return;
+	}
 
+	// Use a vector to manage memory automatically and avoid new[]/delete[] mistakes
+	std::vector<u8> frame(frameLen);
+	u8* ptr = frame.data();
+
+	// Prepare header (use memcpy so we don't rely on strncpy semantics)
 	Adhoc_FrameHeader header;
-	strncpy(header.magic, ADHOC_MAGIC, 8);
+	memset(&header, 0, sizeof(header));
+	memcpy(header.magic, ADHOC_MAGIC, std::min<size_t>(sizeof(header.magic), strlen(ADHOC_MAGIC)));
 	header.version = ADHOC_PROTOCOL_VERSION;
 	header.packetLen = len;
-	memcpy(ptr, &header, sizeof(Adhoc_FrameHeader));
-	ptr += sizeof(Adhoc_FrameHeader);
 
+	// Copy header and payload into the frame buffer
+	memcpy(ptr, &header, headerSize);
+	ptr += headerSize;
 	memcpy(ptr, packet, len);
 
-	int nbytes = sendto(wifi_socket, (const char*)frame, frameLen, 0, &sendAddr, sizeof(sockaddr_t));
-	
-	WIFI_LOG(4, "Ad-hoc: sent %i/%i bytes of packet.\n", nbytes, frameLen);
+	// Send the packet; cast to const char* for sendto
+	int nbytes = sendto(wifi_socket, reinterpret_cast<const char*>(frame.data()), static_cast<int>(frameLen), 0, &sendAddr, sizeof(sockaddr_t));
 
-	delete frame;
+	// Log result; mark nbytes as used to avoid unused-variable warnings if logging is disabled
+	WIFI_LOG(4, "Ad-hoc: sent %i/%zu bytes of packet.\n", nbytes, frameLen);
+	(void)nbytes;
 #endif
 }
 
@@ -2307,4 +2353,3 @@ void SoftAP_usTrigger()
 }
 
 #endif
-

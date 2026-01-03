@@ -1,23 +1,23 @@
 /*  Copyright (C) 2006 yopyop
 	Copyright (C) 2006 Mic
-    Copyright (C) 2009 CrazyMax 
+	Copyright (C) 2009 CrazyMax 
 	Copyright (C) 2009 DeSmuME team
 
-    This file is part of DeSmuME
+	This file is part of DeSmuME
 
-    DeSmuME is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	DeSmuME is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
 
-    DeSmuME is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	DeSmuME is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with DeSmuME; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+	You should have received a copy of the GNU General Public License
+	along with DeSmuME; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #include "../addons.h"
@@ -236,8 +236,13 @@ static void add_file(char *fname, FsEntry * entry, int fileLevel)
 		if (fileLevel > 0) 
 		{
 			fileLink[fileLevel].filesInDir += 1;
-			strncpy((char*)&files[numFiles].name[0],"..      ",NAME_LEN);
-			strncpy((char*)&files[numFiles].ext[0],"   ",EXT_LEN);
+			/* Fill fixed-width name/ext fields (space-padded). Ensure defined bytes and avoid strncpy truncation. */
+			memcpy(files[numFiles].name, "..      ", NAME_LEN);
+			files[numFiles].name[NAME_LEN - 1] = '\0'; /* or keep space padding if FAT expects it */
+
+			memcpy(files[numFiles].ext, "   ", EXT_LEN);
+			files[numFiles].ext[EXT_LEN - 1] = '\0'; /* ensure defined terminator */
+
 			fileLink[numFiles].parent = fileLevel;	
 			files[numFiles].attrib = 0x10;
 			numFiles++;
@@ -277,9 +282,13 @@ static void list_files(const char *filepath)
 
 		if ((entry.flags & FS_IS_DIR) && (strcmp(fname, ".")) && (strcmp(fname, ".."))) 
 		{
-			if (strlen(fname)+strlen(filepath)+2 < 256) 
+			if (strlen(fname) + strlen(filepath) + 2 < sizeof(SubDir)) 
 			{
-				sprintf(SubDir, "%s%c%s", filepath, FS_SEPARATOR, fname);
+				int needed = snprintf(SubDir, sizeof(SubDir), "%s%c%s", filepath, FS_SEPARATOR, fname);
+				if (needed < 0 || (size_t)needed >= sizeof(SubDir)) {
+					/* snprintf would have truncated; skip this entry to avoid overflow */
+					continue;
+				}
 				list_files(SubDir);
 			}
 		}
@@ -302,10 +311,8 @@ static BOOL cflash_build_fat()
 	int i,j,k,l,
 	clust,numClusters,
 	clusterNum2,rootCluster;
-	int fileLevel;
 
 	numFiles  = 0;
-	fileLevel = -1;
 	maxLevel  = -1;
 
 	files = (DIR_ENT *) malloc(MAXFILES*sizeof(DIR_ENT));
@@ -364,7 +371,7 @@ static BOOL cflash_build_fat()
 	}
 
 	memset(dirEntriesInCluster, 0, NUMCLUSTERS*sizeof(int));
-	memset(dirEntryPtr, NULL, NUMCLUSTERS*sizeof(DIR_ENT*));
+	memset(dirEntryPtr, 0, NUMCLUSTERS * sizeof(DIR_ENT*));
 
 	// Change the hierarchical layout to a flat one 
 	for (i=0; i<=maxLevel; i++)
@@ -658,7 +665,9 @@ static u16 fread_buffered(int dirent,u32 cluster,u32 offset)
 	if (activeDirEnt != -1)
 		fclose(hFile);
 
-	strncpy(fpath,sFlashPath.c_str(),ARRAY_SIZE(fpath));
+	/* Copy safely and ensure NUL termination */
+	snprintf(fpath, ARRAY_SIZE(fpath), "%s", sFlashPath.c_str());
+
 	strncat(fpath,DIR_SEP,ARRAY_SIZE(fpath)-strlen(fpath));
 
 	resolve_path(dirent);
@@ -684,149 +693,122 @@ static u16 fread_buffered(int dirent,u32 cluster,u32 offset)
 static unsigned int cflash_read(unsigned int address)
 {
 	unsigned int ret_value = 0;
-	size_t elems_read = 0;
-#if 0 /* used by next if 0 block */
-#define BUFFERED_BLOCK_SIZE 512
-	static u8 block_buffer[BUFFERED_BLOCK_SIZE];
-	static s32 buffered_start_index = -1;
-#endif
 
 	switch (address)
 	{
-		case CF_REG_STS:
-			ret_value = cf_reg_sts;
+	case CF_REG_STS:
+		ret_value = cf_reg_sts;
 		break;
 
-		case CF_REG_DATA:
-			if (cf_reg_cmd == CF_CMD_READ)
+	case CF_REG_DATA:
+		if (cf_reg_cmd != CF_CMD_READ)
+			break;
+
+		if (!CFlash_IsUsingPath())
+		{
+			if (disk_image != -1)
 			{
-				if (!CFlash_IsUsingPath())
-				{
-					if ( disk_image != -1)
-					{
-						u8 data[2];
-#if 0
-						if (currLBA < buffered_start_index || currLBA >= (buffered_start_index + BUFFERED_BLOCK_SIZE))
-						{
-							size_t read_bytes = 0;
-							LSEEK_FN( disk_image, currLBA, SEEK_SET);
+				u8 data[2] = {0, 0};
 
-							while (read_bytes < BUFFERED_BLOCK_SIZE)
-							{
-								size_t cur_read = READ_FN( disk_image, &block_buffer[read_bytes],
-									BUFFERED_BLOCK_SIZE - read_bytes);
-
-								if ( cur_read == -1)
-								{
-									CFLASHLOG( "Error during read: %s\n", strerror(errno) );
-									break;
-								}
-								read_bytes += cur_read;
-							}
-
-							CFLASHLOG( "Read %d bytes\n", read_bytes);
-
-							buffered_start_index = currLBA;
-						}
-						data[0] = block_buffer[currLBA - buffered_start_index];
-						data[1] = block_buffer[currLBA + 1 - buffered_start_index];
-#else
-						LSEEK_FN( disk_image, currLBA, SEEK_SET);
-						elems_read += READ_FN( disk_image, data, 2);
-#endif
-						ret_value = data[1] << 8 | data[0];
-					}
-					currLBA += 2;
+				/* Seek to the current LBA and read two bytes.
+				   Check the return value and handle short/failed reads. */
+				LSEEK_FN(disk_image, currLBA, SEEK_SET);
+				size_t read_ret = READ_FN(disk_image, data, 2);
+				if (read_ret != 2) {
+					/* Log the error and return zeroed data (or handle as appropriate) */
+					CFLASHLOG("cflash_read: short/failed read at LBA %u (read %zu bytes)\n", (unsigned)currLBA, read_ret);
+					data[0] = data[1] = 0;
 				}
-				else		// use path
-				{
-					unsigned char *p;
-					int i;
-					u32 cluster,cluster2,cluster3,fileLBA;
-					cluster = (currLBA / (512 * SECPERCLUS));
-					cluster2 = (((currLBA/512) - filesysData) / SECPERCLUS) + 2;
 
-					// Reading from the MBR 
-					if (currLBA < 512)
-					{
-						p = (unsigned char*)&MBR;
-						ret_value = T1ReadWord(p, currLBA);
+				ret_value = ((unsigned) data[1] << 8) | data[0];
+			}
+			currLBA += 2;
+		}
+		else /* use path */
+		{
+			unsigned char *p = NULL;
+			int i = 0;
+			u32 cluster = 0, cluster2 = 0, cluster3 = 0, fileLBA = 0;
 
-						// Reading the FAT 
-					}
-					else
-						if (((u32)currLBA >= filesysFAT*512) && ((u32)currLBA < filesysRootDir*512))
-						{
-							p = (unsigned char*)&FAT16[0];
-							ret_value = T1ReadWord(p, currLBA - filesysFAT * 512);
+			cluster = (currLBA / (512 * SECPERCLUS));
+			cluster2 = (((currLBA / 512) - filesysData) / SECPERCLUS) + 2;
 
-							// Reading directory entries 
-						}
-						else
-							if (((u32)currLBA >= filesysRootDir*512) &&	(cluster <= (u32)lastDirEntCluster))
-							{
-								cluster3 = ((currLBA - (SECRESV * 512)) / (512 * SECPERCLUS));
-								i = (currLBA-(((cluster3-(filesysRootDir/SECPERCLUS))*SECPERCLUS+filesysRootDir)*512)); //(currLBA - cluster*BYTESPERCLUS);
-								if (i < (dirEntriesInCluster[cluster3]*32))
-								{
-									p = (unsigned char*)dirEntryPtr[cluster3];
-									ret_value = T1ReadWord(p, i);
-								}
-								else
-								{
-									i /= 32;
-									i -= dirEntriesInCluster[cluster3];
-									if ((i>=0)&&(i<numExtraEntries[cluster3])) 
-									{
-										p = (unsigned char*)extraDirEntries[cluster3];
-										ret_value = T1ReadWord(p, i * 32 + (currLBA & 0x1F));
-									}
-									else 
-										if ((currLBA&0x1F)==0)
-											ret_value = FILE_FREE;
-										else
-											ret_value = 0;
-								}
-								// Reading file data 
-							}
+			/* Reading from the MBR */
+			if (currLBA < 512) {
+				p = (unsigned char*)&MBR;
+				ret_value = T1ReadWord(p, currLBA);
+			}
+			/* Reading the FAT */
+			else if (((u32)currLBA >= filesysFAT * 512) && ((u32)currLBA < filesysRootDir * 512)) {
+				p = (unsigned char*)&FAT16[0];
+				ret_value = T1ReadWord(p, currLBA - filesysFAT * 512);
+			}
+			/* Reading directory entries */
+			else if (((u32)currLBA >= filesysRootDir * 512) && (cluster <= (u32)lastDirEntCluster)) {
+				cluster3 = ((currLBA - (SECRESV * 512)) / (512 * SECPERCLUS));
+				i = (currLBA - (((cluster3 - (filesysRootDir / SECPERCLUS)) * SECPERCLUS + filesysRootDir) * 512));
+
+				/* Validate cluster3 before using it as an index. NUMCLUSTERS is the correct limit. */
+				if (cluster3 >= 0 && cluster3 < NUMCLUSTERS &&
+					i >= 0 && i < (dirEntriesInCluster[cluster3] * 32)) {
+					p = (unsigned char*)dirEntryPtr[cluster3];
+					ret_value = T1ReadWord(p, i);
+				} else {
+					/* Avoid indexing arrays with an out-of-range cluster3 */
+					if (cluster3 >= 0 && cluster3 < NUMCLUSTERS) {
+						i /= 32;
+						i -= dirEntriesInCluster[cluster3];
+						if ((i >= 0) && (i < numExtraEntries[cluster3])) {
+							p = (unsigned char*)extraDirEntries[cluster3];
+							ret_value = T1ReadWord(p, i * 32 + (currLBA & 0x1F));
+						} else {
+							if ((currLBA & 0x1F) == 0)
+								ret_value = FILE_FREE;
 							else
-								if ((cluster2 > (u32)lastDirEntCluster) && (cluster2 <= (u32)lastFileDataCluster)) 
-								{
-									//else if ((cluster>lastDirEntCluster)&&(cluster<=lastFileDataCluster)) {
-									fileLBA = currLBA - (filesysData-32)*512;	// 32 = # sectors used for the root entries
-
-									// Check if the read is from the currently opened file 
-									if ((fileLBA >= fileStartLBA) && (fileLBA < fileEndLBA))
-									{
-										cluster = (fileLBA / (512 * SECPERCLUS));
-										ret_value = fread_buffered(activeDirEnt,cluster-dirEntries[activeDirEnt].startCluster,(fileLBA-fileStartLBA)&(BYTESPERCLUS-1)); 
-									}
-									else
-									{
-										for (i=0; i<numFiles; i++)
-										{
-											if ((fileLBA>=(u32)(dirEntries[i].startCluster*512*SECPERCLUS)) &&
-												(fileLBA <(dirEntries[i].startCluster*512*SECPERCLUS)+dirEntries[i].fileSize) &&
-												((dirEntries[i].attrib & (ATTRIB_DIR|ATTRIB_LFN))==0))
-											{
-												cluster = (fileLBA / (512 * SECPERCLUS));
-												ret_value = fread_buffered(i,cluster-dirEntries[i].startCluster,fileLBA&(BYTESPERCLUS-1));
-												break;
-											}
-										}
-									}
-								}
-							currLBA += 2;
+								ret_value = 0;
+						}
+					} else {
+						/* cluster3 out of range — treat as empty/unused sector */
+						if ((currLBA & 0x1F) == 0)
+							ret_value = FILE_FREE;
+						else
+							ret_value = 0;
+					}
 				}
 			}
-	break;
+			/* Reading file data */
+			else if ((cluster2 > (u32)lastDirEntCluster) && (cluster2 <= (u32)lastFileDataCluster)) {
+				fileLBA = currLBA - (filesysData - 32) * 512; /* 32 = # sectors used for the root entries */
+
+				/* Check if the read is from the currently opened file */
+				if ((fileLBA >= fileStartLBA) && (fileLBA < fileEndLBA)) {
+					cluster = (fileLBA / (512 * SECPERCLUS));
+					ret_value = fread_buffered(activeDirEnt, cluster - dirEntries[activeDirEnt].startCluster,
+											  (fileLBA - fileStartLBA) & (BYTESPERCLUS - 1));
+				} else {
+					for (i = 0; i < numFiles; i++) {
+						if ((fileLBA >= (u32)(dirEntries[i].startCluster * 512 * SECPERCLUS)) &&
+							(fileLBA < (dirEntries[i].startCluster * 512 * SECPERCLUS) + dirEntries[i].fileSize) &&
+							((dirEntries[i].attrib & (ATTRIB_DIR | ATTRIB_LFN)) == 0)) {
+							cluster = (fileLBA / (512 * SECPERCLUS));
+							ret_value = fread_buffered(i, cluster - dirEntries[i].startCluster,
+													  fileLBA & (BYTESPERCLUS - 1));
+							break;
+						}
+					}
+				}
+			}
+
+			currLBA += 2;
+		}
+		break;
 
 	case CF_REG_CMD:
-	break;
+		break;
 
 	case CF_REG_LBA1:
 		ret_value = cf_reg_lba1;
-	break;
+		break;
 	}
 
 	return ret_value;
@@ -863,7 +845,7 @@ static void cflash_write(unsigned int address,unsigned int data)
 							if (disk_image != -1) 
 							{
 								LSEEK_FN( disk_image, currLBA, SEEK_SET);
-				      
+					  
 								while(written < 512) 
 								{
 									size_t cur_write =
